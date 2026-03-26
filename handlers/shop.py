@@ -1,0 +1,36 @@
+from aiogram import types, Router, F
+from aiogram.filters import Command
+from database import Database
+
+router = Router()
+db = Database()
+
+@router.message(Command("shop"))
+@router.message(F.text == "🛒 Магазин")
+async def shop_index(message: types.Message):
+    """
+    Головне меню магазину
+    """
+    # Отримуємо дані сім'ї для контексту (можна буде виводити баланс)
+    family_id = db.get_user_family(message.from_user.id)
+    
+    if not family_id:
+        await message.answer("❌ Ви не входите до складу жодної сім'ї!")
+        return
+
+    # Повідомлення про те, що функція в розробці
+    text = (
+        "🛒 **Внутрішньоігровий магазин**\n\n"
+        "🚧 **Даний розділ знаходиться в розробці.**\n\n"
+        "Незабаром тут можна буде придбати:\n"
+        "• 📦 Додаткові ресурси (Реголіт, Кремній, Водень тощо)\n"
+        "• ⚡️ Прискорювачі видобутку\n"
+        "• 🛡 Тимчасові щити від рейдів\n"
+        "• 🎨 Унікальні візуальні модулі для ракети\n\n"
+        "Слідкуйте за оновленнями системи!"
+    )
+    
+    await message.answer(text, parse_mode="Markdown")
+
+# Якщо у вас були старі обробники покупок, їх можна закоментувати або видалити,
+# щоб вони не конфліктували з повідомленням про розробку.

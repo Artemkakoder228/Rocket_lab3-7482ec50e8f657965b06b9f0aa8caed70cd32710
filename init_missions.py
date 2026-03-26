@@ -1,0 +1,51 @@
+from database import Database
+
+print("🔄 Підключення до бази даних...")
+db = Database()
+
+# 1. Жорстке видалення старої таблиці (щоб виправити ID)
+with db.connection:
+    db.cursor.execute("DROP TABLE IF EXISTS missions CASCADE;")
+    print("🗑 Стару таблицю missions видалено.")
+
+# 2. Створення нової чистої таблиці
+db.create_tables()
+print("✅ Таблиці оновлено.")
+
+# 3. Список місій
+# (Назва, Опис, Складність, Нагорода, Планета, is_Boss, ВАРТІСТЬ, РЕСУРС_НАЗВА, РЕСУРС_КІЛЬКІСТЬ, ЧАС_ХВ, РИЗИК_%)
+# --- Оновлений список місій з характеристиками ---
+missions_data = [
+    # --- EARTH (Земля) --- вимоги 10-50
+    ("Тестовий пуск", "Перевірка систем", 1, 300, "Earth", False, 50, None, 0, 1, 5, "speed", 20),
+    ("GPS Супутник", "Виведення вантажу", 2, 600, "Earth", False, 100, "res_iron", 50, 5, 10, "aerodynamics", 15),
+    ("Політ на Місяць", "BOSS: Прорив атмосфери", 5, 2000, "Earth", True, 1000, "res_fuel", 300, 15, 20, "speed", 60),
+
+    # --- MOON (Місяць) --- вимоги 50-150
+    ("Розвідка кратера", "Пошук льоду", 4, 1200, "Moon", False, 400, "res_iron", 200, 10, 25, "handling", 50),
+    ("Курс на Марс", "BOSS: Довгий переліт", 8, 4000, "Moon", True, 2500, "res_he3", 500, 30, 40, "armor", 150),
+
+    # --- MARS (Марс) --- вимоги 200-500
+    ("Пошук життя", "Аналіз ґрунту", 7, 3000, "Mars", False, 800, "res_fuel", 600, 25, 50, "handling", 200),
+    ("Захист колонії", "Відбиття піратів", 8, 4500, "Mars", False, 1200, "res_silicon", 300, 30, 55, "damage", 100),
+    ("Політ на Юпітер", "BOSS: Гравітаційний стрибок", 10, 8000, "Mars", True, 5000, "res_oxide", 1000, 50, 70, "speed", 400),
+
+    # --- JUPITER (Юпітер) --- вимоги 500-2000
+    ("Зонд у шторм", "Занурення в газ", 12, 10000, "Jupiter", False, 2000, "res_fuel", 2000, 45, 85, "armor", 1200),
+    ("Варп-двигун", "WIN: Квантовий стрибок", 20, 50000, "Jupiter", True, 20000, "res_helium", 5000, 60, 95, "speed", 1500),
+]
+
+# 4. Завантаження в базу
+count = 0
+for m in missions_data:
+    try:
+        db.cursor.execute("""
+            INSERT INTO missions (
+                name, description, difficulty, reward, planet, is_boss_mission, 
+                cost_money, req_res_name, req_res_amount, flight_time, pirate_risk,
+                req_stat_type, req_stat_value
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, m)
+        count += 1
+    except Exception as e:
+        print(f"❌ Помилка: {e}")

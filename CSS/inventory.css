@@ -1,0 +1,179 @@
+:root {
+    --cyan: #00f2ff;
+    --green: #00ff9d;
+    --orange: #ff9d00;
+    --dark-bg: #01060b;
+    --glass: rgba(1, 15, 30, 0.85);
+    --font-ui: 'Orbitron', sans-serif;
+    --font-body: 'Rajdhani', sans-serif;
+}
+
+body {
+    margin: 0; padding: 0;
+    background: var(--dark-bg);
+    color: white;
+    font-family: var(--font-body);
+    overflow-x: hidden;
+}
+
+/* Фонові ефекти */
+.space-bg {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: radial-gradient(circle at center, #0b1a2b 0%, #000 100%);
+    z-index: -2;
+}
+.grid-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-image: linear-gradient(rgba(0, 242, 255, 0.05) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(0, 242, 255, 0.05) 1px, transparent 1px);
+    background-size: 50px 50px;
+    z-index: -1;
+}
+
+/* Header */
+.main-header {
+    display: grid;
+    /* Три колонки: [кнопка] [заголовок] [порожнє місце для балансу] */
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    padding: 15px 20px;
+    background: rgba(0, 0, 0, 0.6);
+    border-bottom: 1px solid rgba(0, 242, 255, 0.3);
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(10px);
+    gap: 15px; /* Відступ між елементами */
+}
+
+.back-btn {
+    /* Прибираємо absolute, тепер кнопка частина сітки */
+    position: static; 
+    text-decoration: none; 
+    color: var(--cyan);
+    font-family: var(--font-ui); 
+    font-size: 14px; 
+    border: 1px solid var(--cyan);
+    padding: 8px 20px; 
+    background: rgba(0, 242, 255, 0.1);
+    transition: 0.3s;
+    white-space: nowrap; /* Текст кнопки не переноситься */
+}
+
+.back-btn:hover { 
+    background: var(--cyan); 
+    color: #000; 
+    box-shadow: 0 0 15px var(--cyan); 
+}
+
+.page-title {
+    font-family: var(--font-ui); 
+    color: white; 
+    letter-spacing: 3px; 
+    font-size: 24px;
+    text-shadow: 0 0 10px var(--cyan); 
+    margin: 0;
+    text-align: center;
+    
+    /* Якщо текст дуже довгий, він не зламає верстку */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Main Container */
+.inventory-container {
+    max-width: 1200px; margin: 0 auto; padding: 40px 20px;
+}
+
+.section-title {
+    font-family: var(--font-ui); color: var(--green);
+    border-bottom: 2px solid rgba(0, 255, 157, 0.3);
+    padding-bottom: 10px; margin-bottom: 25px;
+}
+
+/* --- RESOURCES GRID --- */
+.resources-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.res-card {
+    background: linear-gradient(145deg, rgba(10, 20, 40, 0.9), rgba(0, 0, 0, 0.9));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 4px solid var(--cyan);
+    border-radius: 8px;
+    padding: 20px;
+    display: flex; align-items: center; gap: 15px;
+    transition: 0.3s;
+}
+.res-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0, 242, 255, 0.15);
+    border-color: var(--cyan);
+}
+
+.res-icon { font-size: 32px; }
+.res-info { display: flex; flex-direction: column; }
+.res-name { color: #8b9bb4; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+.res-amount { font-family: var(--font-ui); font-size: 22px; color: white; font-weight: bold; }
+
+/* Розділювач */
+.divider { height: 2px; background: rgba(255,255,255,0.1); margin: 40px 0; }
+
+/* --- MODULES GRID --- */
+.modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 25px;
+}
+
+.mod-card {
+    background: var(--glass);
+    border: 1px solid rgba(0, 255, 157, 0.2);
+    border-radius: 10px; overflow: hidden;
+    position: relative; transition: 0.3s;
+    display: flex; flex-direction: column;
+}
+.mod-card:hover {
+    border-color: var(--green);
+    box-shadow: 0 0 25px rgba(0, 255, 157, 0.2);
+    transform: scale(1.02);
+}
+
+.mod-img-box {
+    width: 100%; height: 120px;
+    background: rgba(0,0,0,0.3);
+    display: flex; align-items: center; justify-content: center;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.mod-img-box img { max-height: 80%; max-width: 80%; filter: drop-shadow(0 0 5px var(--cyan)); }
+
+.mod-body { padding: 15px; flex-grow: 1; display: flex; flex-direction: column; }
+.mod-tier { color: var(--orange); font-size: 10px; letter-spacing: 2px; font-weight: bold; }
+.mod-name { font-family: var(--font-ui); font-size: 18px; margin: 5px 0 10px 0; color: white; }
+.mod-desc { font-size: 13px; color: #aebbc9; line-height: 1.4; flex-grow: 1; }
+
+.loading-text { color: var(--cyan); font-family: var(--font-ui); animation: blink 1.5s infinite; }
+@keyframes blink { 50% { opacity: 0.5; } }
+
+/* Адаптив для телефонів */
+@media (max-width: 768px) {
+    .main-header {
+        /* На телефонах ставимо все в одну колонку (стовпчик) */
+        grid-template-columns: 1fr;
+        justify-items: center; /* Центруємо все */
+        gap: 10px;
+        padding: 10px;
+    }
+    .page-title {
+        font-size: 18px;
+        white-space: normal; /* Дозволяємо перенос тексту на телефонах */
+    }
+    .inventory-container { padding: 20px 10px; }
+    .resources-grid { grid-template-columns: 1fr 1fr; }
+    .modules-grid { grid-template-columns: 1fr; }
+    .back-btn {
+        width: 100%; /* Кнопка на всю ширину для зручності */
+        text-align: center;
+    }
+}

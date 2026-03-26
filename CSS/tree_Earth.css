@@ -1,0 +1,486 @@
+:root {
+    --cyan: #00f2ff;
+    --dark-bg: #01060b;
+    --grid-color: rgba(0, 242, 255, 0.1);
+}
+
+* { box-sizing: border-box; }
+body, html { 
+    margin: 0; padding: 0; width: 100%; height: 100%; 
+    overflow: hidden; background: var(--dark-bg); 
+    font-family: 'Rajdhani', sans-serif; color: white; 
+}
+
+/* Header */
+.main-header {
+    position: fixed; top: 0; width: 100%; z-index: 1000;
+    background: rgba(0, 10, 20, 0.95); /* Трохи темніший фон */
+    border-bottom: 1px solid var(--cyan);
+    display: flex; flex-direction: column; align-items: center; backdrop-filter: blur(10px);
+    
+    /* ЗБІЛЬШЕННЯ ВИСОТИ ШАПКИ */
+    padding-bottom: 15px; 
+}
+
+/* Стиль кнопки "Назад" */
+.back-btn {
+    position: absolute;
+    left: 30px;
+    top: 35px; /* Вирівнювання по висоті відносно кнопок планет */
+    
+    text-decoration: none;
+    color: var(--cyan);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    letter-spacing: 1px;
+    font-weight: bold;
+    
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    padding: 8px 15px;
+    border: 1px solid rgba(0, 242, 255, 0.3);
+    background: rgba(0, 10, 20, 0.5);
+    transition: all 0.3s ease;
+    z-index: 1100; /* Щоб була поверх всього */
+}
+
+.back-btn .arrow {
+    font-size: 20px;
+    line-height: 0.8;
+    transition: transform 0.3s ease;
+}
+
+/* Ховер ефект */
+.back-btn:hover {
+    background: var(--cyan);
+    color: black;
+    box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+    border-color: var(--cyan);
+}
+
+.back-btn:hover .arrow {
+    transform: translateX(-3px); /* Стрілочка трохи зсувається вліво */
+}
+
+.planet-nav { 
+    display: flex; 
+    gap: 40px; 
+    /* ЗБІЛЬШЕНІ ВІДСТУПИ ВЕРХ/НИЗ */
+    padding: 20px 0 15px 0; 
+}
+
+/* Оновлений стиль для кнопок-посилань */
+.planet-btn {
+    text-decoration: none; /* Прибираємо підкреслення посилання */
+    display: inline-block;
+    background: transparent; border: 1px solid var(--cyan); color: var(--cyan);
+    padding: 8px 30px; /* Трохи більші кнопки */
+    cursor: pointer; font-family: 'Orbitron'; font-size: 12px; /* Трохи більший шрифт */
+    transition: all 0.4s ease;
+}
+
+.planet-btn.active, .planet-btn:hover {
+    background: var(--cyan); color: black; box-shadow: 0 0 20px var(--cyan);
+}
+
+.resource-row { 
+    display: flex; 
+    gap: 60px; 
+    padding-bottom: 5px; /* Трохи менший відступ знизу, бо шапка і так висока */
+    font-size: 16px; /* Збільшив шрифт ресурсів */
+    align-items: center; 
+    justify-content: center; 
+}
+
+.res-item { 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; /* відстань між картинкою та текстом */
+    min-width: 160px; 
+    text-align: center;
+}
+
+.res-icon {
+    width: 28px;
+    height: 28px;
+    object-fit: contain; /* щоб картинка не спотворювалась */
+    border-radius: 4px;
+    box-shadow: 0 0 6px var(--cyan);
+}
+
+.res-label {
+    font-weight: bold;
+    color: white;
+}
+
+.res-item span { 
+    color: var(--cyan); 
+    font-weight: bold; 
+    text-shadow: 0 0 5px var(--cyan); 
+}
+
+
+
+/* Viewport & Grid */
+.viewport { width: 100vw; height: 100vh; position: relative; cursor: grab; background: var(--dark-bg); }
+.viewport:active { cursor: grabbing; }
+
+.grid-background {
+    position: absolute; width: 5000px; height: 5000px;
+    top: -1000px; left: -1000px;
+    background-image: linear-gradient(var(--grid-color) 1px, transparent 1px), 
+                      linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+    background-size: 60px 60px; pointer-events: none; z-index: 0;
+}
+
+.tree-canvas { position: absolute; width: 3000px; height: 3000px; z-index: 1; transition: transform 0.1s ease-out; }
+
+/* Nodes */
+.node {
+    position: absolute; 
+    width: 150px;  /* Трохи вужча */
+    height: 145px; /* Значно менша висота (було 180) */
+    
+    background: rgba(1, 15, 30, 0.9);
+    border: 1px solid rgba(0, 242, 255, 0.3);
+    
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    padding: 8px;
+    
+    clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+    transition: 0.3s; 
+    z-index: 10;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+}
+
+.node:hover { 
+    border-color: var(--cyan); 
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0, 242, 255, 0.2); 
+    background: rgba(0, 242, 255, 0.1); 
+}
+
+.node.owned {
+    border-color: #00ff9d;
+    box-shadow: 0 0 10px rgba(0, 255, 157, 0.1);
+}
+
+/* Картинка */
+.node-img-box {
+    width: 100%;
+    height: 60px; /* Зменшено з 80 */
+    background: rgba(255, 255, 255, 0.03);
+    margin-bottom: 5px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed rgba(0, 242, 255, 0.15);
+}
+
+.node-icon {
+    max-width: 70%;
+    max-height: 70%;
+}
+
+/* Текст */
+.node-tier {
+    font-size: 9px;
+    color: var(--cyan);
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+}
+
+.node-title {
+    font-size: 11px;
+    font-weight: bold;
+    line-height: 1.1;
+    color: #fff;
+    margin-bottom: 0; /* Прибираємо зайвий відступ */
+}
+
+/* Галочка */
+.node-status {
+    width: 100%;
+    height: 18px; /* Фіксована висота для статусу */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: auto; /* Притискає до низу, але не сильно */
+}
+
+.checkmark {
+    color: #00ff9d;
+    font-size: 16px;
+    line-height: 1;
+    text-shadow: 0 0 5px #00ff9d;
+}
+
+.line { 
+    position: absolute; 
+    height: 2px;
+    background: var(--cyan);
+    opacity: 0.2; transform-origin:
+    left; transition: 0.5s;
+    z-index: 5;
+}
+.line.highlight { opacity: 1; box-shadow: 0 0 20px var(--cyan); height: 3px; animation: flow 2s infinite linear; }
+
+@keyframes flow { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+
+/* Side Panel */
+.side-panel {
+    position: fixed; right: -400px; top: 0; width: 380px; height: 100%;
+    background: rgba(1, 8, 15, 0.98); border-left: 2px solid var(--cyan);
+    padding: 80px 30px; transition: 0.5s cubic-bezier(0.16, 1, 0.3, 1); z-index: 2000;
+    backdrop-filter: blur(15px);
+}
+.side-panel.active { right: 0; }
+.close-btn { position: absolute; top: 20px; right: 20px; background: none; border: none; color: var(--cyan); font-size: 45px; cursor: pointer; transition: 0.3s; }
+.close-btn:hover { transform: rotate(90deg); color: white; }
+
+.module-image-box {
+    width: 100%;
+    height: 160px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+      background: linear-gradient(
+        145deg,
+        rgba(0, 140, 255, 0.15),
+        rgba(0, 40, 80, 0.4)
+    );
+    border: 1px solid rgba(0, 180, 255, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+        inset 0 0 18px rgba(0, 180, 255, 0.15),
+        0 0 14px rgba(0, 60, 120, 0.6);
+}
+
+.module-image-box img {
+    max-width: 85%;
+    max-height: 85%;
+    object-fit: contain;
+    filter: drop-shadow(0 0 10px rgba(0, 180, 255, 0.7));
+}
+
+.action-btn {
+    width: 100%;
+    padding: 14px 0;
+    margin-top: 16px;
+
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 1.6px;
+    font-size: 14px;
+
+    color: #e8f8ff;
+
+    background: linear-gradient(
+        145deg,
+        rgba(0, 170, 255, 0.85),
+        rgba(0, 90, 180, 0.9)
+    );
+
+    border: 1px solid rgba(0, 200, 255, 0.9);
+    border-radius: 10px;
+
+    cursor: pointer;
+    transition: all 0.25s ease;
+
+    box-shadow:
+        0 0 18px rgba(0, 180, 255, 0.9),
+        inset 0 0 16px rgba(0, 220, 255, 0.35);
+}
+
+.action-btn:hover:not(.disabled) {
+    background: linear-gradient(
+        145deg,
+        rgba(0, 200, 255, 1),
+        rgba(0, 120, 220, 1)
+    );
+
+    box-shadow:
+        0 0 26px rgba(0, 200, 255, 1),
+        inset 0 0 18px rgba(0, 240, 255, 0.45);
+
+    transform: translateY(-1px);
+}
+
+.action-btn:active:not(.disabled) {
+    transform: translateY(1px);
+    box-shadow:
+        inset 0 0 20px rgba(0, 120, 200, 0.8);
+}
+
+.action-btn.disabled {
+    background: linear-gradient(
+        145deg,
+        rgba(80, 80, 80, 0.4),
+        rgba(40, 40, 40, 0.7)
+    );
+
+    border: 1px solid rgba(150, 150, 150, 0.4);
+    color: #9aa0a6;
+
+    cursor: not-allowed;
+
+    box-shadow:
+        inset 0 0 16px rgba(0, 0, 0, 0.6);
+}
+
+.cost-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 колонки */
+    gap: 10px;
+    margin: 20px 0;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(0, 242, 255, 0.2);
+    border-radius: 8px;
+    opacity: 0; /* Ховаємо, якщо нічого показувати */
+    transition: opacity 0.3s;
+}
+
+.cost-grid.visible {
+    opacity: 1; /* Показуємо, коли є ціна */
+}
+
+/* Окрема комірка ресурсу */
+.cost-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+/* Назва ресурсу (Іконка) */
+.cost-icon {
+    font-size: 18px;
+    margin-bottom: 5px;
+}
+
+/* Значення ціни */
+.cost-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* Кольори для ресурсів (ті ж, що і в шапці) */
+.val-iron { color: #aebbc9; text-shadow: 0 0 5px rgba(174, 187, 201, 0.5); }
+.val-fuel { color: #ff9d00; text-shadow: 0 0 5px rgba(255, 157, 0, 0.5); }
+.val-coin { color: #00ff9d; text-shadow: 0 0 5px rgba(0, 255, 157, 0.5); }
+
+/* Якщо модуль вже куплено */
+.cost-owned-msg {
+    grid-column: 1 / -1; /* На всю ширину */
+    color: var(--cyan);
+    text-align: center;
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 2px;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+@media (max-width: 1200px) {
+    .planet-nav {
+        gap: 20px; /* Зменшуємо відстань між кнопками планет */
+    }
+    
+    .resource-row {
+        gap: 30px; /* Зменшуємо відстань між ресурсами */
+    }
+    
+    /* Трохи посуваємо кнопку, щоб не наїжджала */
+    .back-btn {
+        left: 15px; 
+        padding: 6px 12px;
+    }
+}
+
+/* 2. Для мобільних телефонів та вузьких екранів (менше 768px) */
+@media (max-width: 768px) {
+    .main-header {
+        position: relative; /* Змінюємо позиціонування */
+        height: auto;
+        padding: 10px;
+    }
+
+    /* Кнопка "Назад" стає частиною потоку (не absolute), щоб не накладатись */
+    .back-btn {
+        position: relative; 
+        top: 0; 
+        left: 0;
+        margin-bottom: 10px;
+        align-self: flex-start; /* Вирівнювання зліва */
+    }
+
+    .planet-nav {
+        padding: 5px 0;
+        flex-wrap: wrap; /* Дозволяємо перенос на новий рядок */
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .planet-btn {
+        padding: 5px 15px;
+        font-size: 10px;
+    }
+
+    .resource-row {
+        gap: 15px;
+        flex-wrap: wrap; /* Ресурси теж можуть переноситись */
+        justify-content: center;
+        font-size: 14px;
+    }
+
+    .res-item {
+        min-width: auto; /* Прибираємо фіксовану ширину */
+    }
+}
+
+/* 3. Для низьких екранів (наприклад, телефон у горизонтальному режимі) */
+@media (max-height: 500px) {
+    .main-header {
+        flex-direction: row; /* Розміщуємо все в один рядок, якщо влізе */
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 5px;
+        gap: 15px;
+    }
+
+    .back-btn {
+        position: static; /* В потік */
+        margin: 0;
+        font-size: 10px;
+        padding: 4px 8px;
+    }
+
+    .planet-nav {
+        padding: 0;
+        margin: 0;
+        gap: 5px;
+    }
+
+    .planet-btn {
+        padding: 4px 10px;
+        font-size: 10px;
+    }
+
+    .resource-row {
+        padding: 0;
+        gap: 15px;
+        font-size: 12px;
+    }
+    
+    .res-icon {
+        width: 20px;
+        height: 20px;
+    }
+}

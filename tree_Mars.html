@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Astra-Nexus R&D Command Center</title>
+    <link rel="stylesheet" href="CSS/tree_Mars.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="main-header">
+        <a href="Mars.html" class="back-btn">
+            <span class="arrow">‹</span> MENU
+        </a>
+        <div class="planet-nav">
+            <a href="tree_Earth.html" class="planet-btn">EARTH</a>
+            <a href="tree_Moon.html" class="planet-btn">MOON</a>
+            <a href="tree_Mars.html" class="planet-btn active">MARS</a>
+            <a href="tree_Jupiter.html" class="planet-btn">JUPITER</a>
+            </div>
+    </header>
+
+    <div class="viewport" id="viewport">
+        <div class="grid-background"></div>
+        <div id="canvas" class="tree-canvas">
+            </div>
+    </div>
+
+    <aside id="info-panel" class="side-panel">
+        <button class="close-btn" onclick="closePanel()">&times;</button>
+        <div class="panel-content">
+            <div class="module-image-box">
+                <img id="node-image" src="images/modules/placeholder.png" alt="Module Image">
+            </div>
+
+            <h2 id="node-name">Назва модуля</h2>
+            <div id="node-tier" class="tier-badge">РІВЕНЬ I</div>
+            <div class="separator"></div>
+            <p id="node-desc">Опис технології та її переваги для вашої ракети.</p>
+            <div id="node-cost" class="cost-grid"></div>
+            <button class="action-btn">ДОСЛІДИТИ</button>
+        </div>
+
+    </aside>
+
+    <script src="JS/config.js"></script>
+    <script src="JS/tree_Mars.js"></script>
+</body>
+</html>

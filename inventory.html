@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astra-Nexus | Інвентар</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="CSS/inventory.css">
+</head>
+<body>
+    <div class="space-bg"></div>
+    <div class="grid-overlay"></div>
+
+    <header class="main-header">
+        <a href="index.html" id="back-btn" class="back-btn">
+            <span class="arrow">‹</span> MENU
+        </a>
+        <h1 class="page-title">СКЛАД РЕСУРСІВ ТА МОДУЛІВ</h1>
+    </header>
+
+    <main class="inventory-container">
+        
+        <section class="section-resources">
+            <h2 class="section-title">📦 МАТЕРІАЛИ</h2>
+            <div class="resources-grid" id="resources-grid">
+                <div class="loading-text">Завантаження даних...</div>
+            </div>
+        </section>
+
+        <div class="divider"></div>
+
+        <section class="section-modules">
+            <h2 class="section-title">🚀 ВСТАНОВЛЕНІ МОДУЛІ</h2>
+            <div class="modules-grid" id="modules-grid">
+                <div class="loading-text">Сканування ангару...</div>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="JS/config.js"></script>
+    <script src="JS/inventory.js"></script>
+</body>
+</html>
