@@ -7,46 +7,38 @@ from aiogram.exceptions import TelegramBadRequest
 from database import Database
 
 router = Router()
-db = Database('space.db')
+db = Database()
 
-# --- КОНСТАНТИ (БАЛАНС) ---
-MINING_RATE = 2   # Було 10. Тепер 2 ресурси за хвилину на 1 рівні шахти.
-SHIELD_PRICE = 1000 
+# --- КОНСТАНТИ ---
+BASE_MINE_RATE = 0.08 
+SHIELD_PRICE = 1000
 
-# Словник з іконками для ресурсів
 RES_ICONS = {
-    "res_iron": "🔩",
-    "res_fuel": "⛽",
-    "res_regolith": "🌑",
-    "res_he3": "⚛️",
-    "res_silicon": "💾",
-    "res_oxide": "🧪",
-    "res_hydrogen": "🎈",
-    "res_helium": "🌌"
+    "res_iron": "🔩", "res_fuel": "⛽",
+    "res_regolith": "🌑", "res_he3": "⚛️",
+    "res_silicon": "💾", "res_oxide": "🧪",
+    "res_hydrogen": "🎈", "res_helium": "🌌"
 }
 
-# --- ФУНКЦІЯ РОЗРАХУНКУ ---
-def get_upgrade_cost(current_lvl):
+# --- НОВА ФУНКЦІЯ РОЗРАХУНКУ (ЗАЛЕЖИТЬ ВІД ПЛАНЕТИ) ---
+def get_upgrade_cost(planet, current_lvl):
     next_lvl = current_lvl + 1
-    
-    # 1. Гроші: 500 * рівень
     coins = 500 * next_lvl
-    
-    # 2. Час: 5 хвилин * рівень
     minutes = 5 * next_lvl
     
-    # 3. Ресурс: Змінюється кожні 3 рівні
-    if current_lvl < 3:
+    # Вимагаємо ресурс тієї планети, де будується шахта
+    if planet == 'Earth':
         r_type, r_name, amt = "res_iron", "Залізо", 200 * next_lvl
-    elif current_lvl < 6:
-        r_type, r_name, amt = "res_fuel", "Паливо", 150 * next_lvl
-    elif current_lvl < 9:
-        r_type, r_name, amt = "res_regolith", "Реголіт", 100 * next_lvl
+    elif planet == 'Moon':
+        r_type, r_name, amt = "res_regolith", "Реголіт", 150 * next_lvl
+    elif planet == 'Mars':
+        r_type, r_name, amt = "res_silicon", "Кремній", 100 * next_lvl
+    elif planet == 'Jupiter':
+        r_type, r_name, amt = "res_hydrogen", "Водень", 50 * next_lvl
     else:
-        r_type, r_name, amt = "res_he3", "Гелій-3", 50 * next_lvl
+        r_type, r_name, amt = "res_iron", "Залізо", 200 * next_lvl
         
     return coins, minutes, r_type, r_name, amt
-
 
 # --- ВІДОБРАЖЕННЯ МЕНЮ ---
 async def render_infra_menu(target_msg: types.Message, user_id: int, is_edit: bool = False):
@@ -57,14 +49,15 @@ async def render_infra_menu(target_msg: types.Message, user_id: int, is_edit: bo
 
     data = db.get_family_resources(fid)
     timers = db.get_timers(fid)
-    
     if not data: return
 
-    mine_lvl = data[9]
     planet = data[11]
     upgrade_end = timers[3]
     
-    # --- ЛОГІКА ТАЙМЕРА ---
+    # ОТРИМУЄМО ДАНІ ШАХТИ ДЛЯ ПОТОЧНОЇ ПЛАНЕТИ
+    mine_info = db.get_mine_info(fid, planet)
+    mine_lvl = mine_info[0] if mine_info else 0
+    
     is_upgrading = False
     
     if upgrade_end:
@@ -74,12 +67,7 @@ async def render_infra_menu(target_msg: types.Message, user_id: int, is_edit: bo
             diff = upgrade_end - now
             mm, ss = divmod(diff.seconds, 60)
             hh = diff.seconds // 3600
-            
-            if hh > 0:
-                time_str = f"{hh}:{mm:02d}:{ss:02d}"
-            else:
-                time_str = f"{mm:02d}:{ss:02d}"
-
+            time_str = f"{hh}:{mm:02d}:{ss:02d}" if hh > 0 else f"{mm:02d}:{ss:02d}"
             finish_time = upgrade_end.strftime("%H:%M")
             status_text = f"🚧 **Модернізація до {finish_time}**"
             btn_text = f"⏳ {time_str} (Оновити)"
@@ -90,10 +78,9 @@ async def render_infra_menu(target_msg: types.Message, user_id: int, is_edit: bo
         status_text = "✅ **Штатний режим**"
 
     text = (
-        f"🏭 **ІНФРАСТРУКТУРА**\n"
+        f"🏭 **ІНФРАСТРУКТУРА ({planet})**\n"
         f"━━━━━━━━━━━━━━━━\n"
-        f"📍 База: **{planet}**\n"
-        f"⛏ Рівень: **{mine_lvl}**\n"
+        f"⛏ Рівень шахти: **{mine_lvl}**\n"
         f"⚙️ Статус: {status_text}\n"
         f"━━━━━━━━━━━━━━━━\n"
     )
@@ -102,33 +89,34 @@ async def render_infra_menu(target_msg: types.Message, user_id: int, is_edit: bo
 
     if upgrade_end and datetime.now() > upgrade_end:
         kb.button(text="🎉 ЗАВЕРШИТИ БУДІВНИЦТВО", callback_data="upgrade_finish")
-    
+        kb.adjust(1)
     elif is_upgrading:
         kb.button(text=btn_text, callback_data="refresh_timer")
         text += f"\n_Роботи завершаться через {time_str}_"
-
+        kb.adjust(1)
     else:
-        c_coins, c_time, r_code, r_name, r_amt = get_upgrade_cost(mine_lvl)
-        
-        # Отримуємо іконку ресурсу
+        # Передаємо планету в калькулятор
+        c_coins, c_time, r_code, r_name, r_amt = get_upgrade_cost(planet, mine_lvl)
         r_icon = RES_ICONS.get(r_code, "📦")
 
-        kb.button(text="📥 Зібрати ресурси", callback_data="collect_resources")
-        # Формуємо кнопку з нормальним смайликом замість букви
+        # Додаємо дві кнопки для збору ресурсів
+        kb.button(text="📥 Зібрати (Поточна)", callback_data="collect_resources")
+        kb.button(text="🌍 Зібрати з УСІХ планет", callback_data="collect_all_resources")
+        
         kb.button(
             text=f"⬆️ Lvl {mine_lvl+1} (💰{c_coins}  {r_icon} {r_amt}  ⏳{c_time}хв)", 
             callback_data="upgrade_start"
         )
         kb.button(text="🛡 Щит", callback_data="shield_menu")
 
-    kb.adjust(1)
+        # Вирівнюємо кнопки: 2 зверху (для збору), 1 по центру (прокачка), 1 знизу (щит)
+        kb.adjust(2, 1, 1)
 
     if is_edit:
         with suppress(TelegramBadRequest):
             await target_msg.edit_text(text, reply_markup=kb.as_markup(), parse_mode="Markdown")
     else:
         await target_msg.answer(text, reply_markup=kb.as_markup(), parse_mode="Markdown")
-
 
 # --- ХЕНДЛЕРИ ---
 
@@ -149,12 +137,14 @@ async def refresh_timer_handler(call: types.CallbackQuery):
 async def upgrade_start_handler(call: types.CallbackQuery):
     fid = db.get_user_family(call.from_user.id)
     data = db.get_family_resources(fid)
-    mine_lvl = data[9]
+    planet = data[11]
+    mine_info = db.get_mine_info(fid, planet)
+    mine_lvl = mine_info[0]
 
-    coins, time_min, r_type, r_name, r_amt = get_upgrade_cost(mine_lvl)
+    coins, time_min, r_type, r_name, r_amt = get_upgrade_cost(planet, mine_lvl)
     
     cur_coins = data[0]
-    res_map = {"res_iron": 1, "res_fuel": 2, "res_regolith": 3, "res_he3": 4}
+    res_map = {"res_iron": 1, "res_fuel": 2, "res_regolith": 3, "res_he3": 4, "res_silicon": 5, "res_oxide": 6, "res_hydrogen": 7, "res_helium": 8}
     res_idx = res_map.get(r_type, 1)
     cur_res = data[res_idx]
 
@@ -164,12 +154,13 @@ async def upgrade_start_handler(call: types.CallbackQuery):
     db.deduct_resources(fid, coins, r_type, r_amt)
     db.set_upgrade_timer(fid, time_min)
 
-    await call.answer(f"✅ Почали! ({time_min} хв)")
+    await call.answer(f"✅ Будівництво почато! ({time_min} хв)")
     await render_infra_menu(call.message, call.from_user.id, is_edit=True)
 
 @router.callback_query(F.data == "upgrade_finish")
 async def upgrade_finish_handler(call: types.CallbackQuery):
     fid = db.get_user_family(call.from_user.id)
+    # Звертаємось до функції і вона сама підтягне поточну планету
     db.finish_upgrade(fid)
     await call.answer("🎉 Шахту покращено!")
     await render_infra_menu(call.message, call.from_user.id, is_edit=True)
@@ -178,44 +169,47 @@ async def upgrade_finish_handler(call: types.CallbackQuery):
 async def collect_res_handler(call: types.CallbackQuery):
     fid = db.get_user_family(call.from_user.id)
     data = db.get_family_resources(fid)
-    
-    last_col = data[10]
-    mine_lvl = data[9]
     planet = data[11]
+    
+    mine_info = db.get_mine_info(fid, planet)
+    mine_lvl = mine_info[0]
+    last_col = mine_info[1]
 
     if not last_col: last_col = datetime.now()
     diff = (datetime.now() - last_col).total_seconds() / 60
     
-    if diff < 1:
-        return await call.answer("⏳ Рано! Ще накопичується (мін. 1 хв).", show_alert=True)
+    # Збільшуємо мінімальний час до 5 хвилин, щоб не спамили кнопку
+    if diff < 5:
+        return await call.answer("⏳ Шахта працює... Збирати ресурси можна не частіше ніж раз на 5 хвилин.", show_alert=True)
 
-    amount = int(diff * mine_lvl * MINING_RATE)
-    if amount <= 0:
-        return await call.answer("Склади порожні.", show_alert=True)
-
-    # Визначаємо типи ресурсів та їх назви/іконки для повідомлення
-    if planet == "Moon": 
-        r1, r2 = "res_regolith", "res_he3"
-        n1, n2 = "Реголіт", "Гелій-3"
-        i1, i2 = "🌑", "⚛️"
-    elif planet == "Mars": 
-        r1, r2 = "res_silicon", "res_oxide"
-        n1, n2 = "Кремній", "Оксид"
-        i1, i2 = "💾", "🧪"
-    elif planet == "Jupiter": 
-        r1, r2 = "res_hydrogen", "res_helium"
-        n1, n2 = "Водень", "Гелій"
-        i1, i2 = "🎈", "🌌"
-    else: 
-        r1, r2 = "res_iron", "res_fuel"
-        n1, n2 = "Залізо", "Паливо"
-        i1, i2 = "🔩", "⛽"
-
-    db.collect_resources(fid, r1, amount, r2, amount)
+    # Новий розрахунок на основі дробового коефіцієнта
+    amount = int(diff * mine_lvl * BASE_MINE_RATE)
     
-    # Красиве повідомлення з іконками та назвами
+    if amount <= 0:
+        return await call.answer("📦 Нових ресурсів поки не видобуто. Зачекайте ще.", show_alert=True)
+
+    if planet == "Moon": 
+        r1, r2, n1, n2, i1, i2 = "res_regolith", "res_he3", "Реголіт", "Гелій-3", "🌑", "⚛️"
+    elif planet == "Mars": 
+        r1, r2, n1, n2, i1, i2 = "res_silicon", "res_oxide", "Кремній", "Оксид", "💾", "🧪"
+    elif planet == "Jupiter": 
+        r1, r2, n1, n2, i1, i2 = "res_hydrogen", "res_helium", "Водень", "Гелій", "🎈", "🌌"
+    else: 
+        r1, r2, n1, n2, i1, i2 = "res_iron", "res_fuel", "Залізо", "Паливо", "🔩", "⛽"
+
+    # Перевірка, чи склади вже були повністю забиті ДО збору
+    res_map = {"res_iron": 1, "res_fuel": 2, "res_regolith": 3, "res_he3": 4, "res_silicon": 5, "res_oxide": 6, "res_hydrogen": 7, "res_helium": 8}
+    cur_r1 = data[res_map.get(r1, 1)]
+    cur_r2 = data[res_map.get(r2, 2)]
+
+    if cur_r1 >= 10000 and cur_r2 >= 10000:
+        return await call.answer("⚠️ Ваші склади переповнені (10 000 / 10 000)! Витратьте ресурси.", show_alert=True)
+
+    # Передаємо в БД (вона сама обріже зайве, якщо сума перевищить 10000)
+    db.collect_resources(fid, planet, r1, amount, r2, amount)
+    
     await call.answer(
-        f"✅ Успішно зібрано:\n"
+        f"✅ Зібрано на {planet}:\n"
         f"+{amount} {i1} {n1}\n"
         f"+{amount} {i2} {n2}", 
         show_alert=True
@@ -246,3 +240,48 @@ async def buy_shield_handler(call: types.CallbackQuery):
 
     await call.answer("✅ Щит увімкнено!", show_alert=True)
     await render_infra_menu(call.message, call.from_user.id, is_edit=True)
+
+@router.callback_query(F.data == "collect_all_resources")
+async def collect_all_handler(call: types.CallbackQuery):
+    fid = db.get_user_family(call.from_user.id)
+    
+    # Словник з даними планет для циклу
+    planets_data = {
+        "Earth": ("res_iron", "res_fuel", "🔩", "⛽"),
+        "Moon": ("res_regolith", "res_he3", "🌑", "⚛️"),
+        "Mars": ("res_silicon", "res_oxide", "💾", "🧪"),
+        "Jupiter": ("res_hydrogen", "res_helium", "🎈", "🌌")
+    }
+    
+    collected_msg = "✅ Звіт по видобутку:\n"
+    total_collected = False
+    
+    for planet, res in planets_data.items():
+        mine_info = db.get_mine_info(fid, planet)
+        if not mine_info: continue
+        
+        mine_lvl = mine_info[0]
+        if mine_lvl == 0: continue # Пропускаємо, якщо шахту ще не побудовано
+        
+        last_col = mine_info[1] or datetime.now()
+        diff = (datetime.now() - last_col).total_seconds() / 60
+        
+        if diff >= 5: # Збираємо тільки якщо пройшло більше 5 хвилин
+            amount = int(diff * mine_lvl * BASE_MINE_RATE)
+            if amount > 0:
+                r1, r2, i1, i2 = res
+                
+                # Записуємо в БД (вона сама обріже зайве, якщо сума перевищить 10 000)
+                db.collect_resources(fid, planet, r1, amount, r2, amount)
+                
+                # Додаємо рядок до звіту
+                collected_msg += f"\n📍 {planet}: +{amount}{i1} | +{amount}{i2}"
+                total_collected = True
+                
+    if total_collected:
+        # Показуємо спливаюче вікно з красивим звітом
+        await call.answer(collected_msg, show_alert=True)
+        # Оновлюємо меню, щоб скинути таймер поточної планети на екрані
+        await render_infra_menu(call.message, call.from_user.id, is_edit=True)
+    else:
+        await call.answer("⏳ Шахти працюють... Нових ресурсів ще не накопичилося (мінімум 5 хв).", show_alert=True)

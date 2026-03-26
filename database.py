@@ -155,9 +155,18 @@ class Database:
                 query = f"UPDATE families SET {res_name} = {res_name} - %s WHERE id = %s"
                 self.cursor.execute(query, (res_amount, family_id))
 
-    def collect_resources(self, family_id, res1_col, amount1, res2_col, amount2):
+    def collect_resources(self, family_id, planet, res1_col, amount1, res2_col, amount2):
+        p = planet.lower()
         with self.connection:
-            query = f"UPDATE families SET {res1_col} = {res1_col} + %s, {res2_col} = {res2_col} + %s, last_collection = CURRENT_TIMESTAMP WHERE id = %s"
+            # Функція LEAST(x, 10000) бере менше з двох значень.
+            # Якщо сума стане 10500, база запише рівно 10000.
+            query = f"""
+                UPDATE families 
+                SET {res1_col} = LEAST({res1_col} + %s, 10000), 
+                    {res2_col} = LEAST({res2_col} + %s, 10000), 
+                    last_coll_{p} = CURRENT_TIMESTAMP 
+                WHERE id = %s
+            """
             self.cursor.execute(query, (amount1, amount2, family_id))
 
     def admin_add_resources(self, family_id):
@@ -320,9 +329,14 @@ class Database:
         with self.connection:
             self.cursor.execute("UPDATE families SET upgrade_end_time = %s WHERE id = %s", (end_time, family_id))
 
-    def finish_upgrade(self, family_id):
+    def finish_upgrade(self, family_id, planet=None):
         with self.connection:
-            self.cursor.execute("UPDATE families SET mine_lvl = mine_lvl + 1, last_collection = CURRENT_TIMESTAMP, upgrade_end_time = NULL WHERE id = %s", (family_id,))
+            if not planet:
+                self.cursor.execute("SELECT current_planet FROM families WHERE id = %s", (family_id,))
+                planet = self.cursor.fetchone()[0]
+                
+            p = planet.lower()
+            self.cursor.execute(f"UPDATE families SET mine_lvl_{p} = mine_lvl_{p} + 1, last_coll_{p} = CURRENT_TIMESTAMP, upgrade_end_time = NULL WHERE id = %s", (family_id,))
 
     def get_expired_missions(self):
         import datetime
@@ -376,11 +390,11 @@ class Database:
 
     def get_family_power(self, family_id):
         with self.connection:
-            self.cursor.execute("SELECT engine_lvl, hull_lvl, mine_lvl FROM families WHERE id = %s", (family_id,))
+            self.cursor.execute("SELECT engine_lvl, hull_lvl, mine_lvl_earth FROM families WHERE id = %s", (family_id,))
             row = self.cursor.fetchone()
             if row: return row[0] + row[1] + int(row[2] / 2)
             return 0
-
+        
     def get_random_enemy(self, my_family_id):
         with self.connection:
             self.cursor.execute("""
@@ -506,7 +520,10 @@ class Database:
 
     def travel_to_planet(self, family_id, planet_name):
         with self.connection:
-            # Змінюємо планету і скидаємо рівень шахти (бо на новій планеті нові шахти)
-            # АБО можна зберігати рівень шахти для кожної планети окремо (це складніше)
-            # Поки що просто змінюємо локацію:
             self.cursor.execute("UPDATE families SET current_planet = %s WHERE id = %s", (planet_name, family_id))
+    def get_mine_info(self, family_id, planet):
+        """Отримує рівень шахти та таймер збору для конкретної планети"""
+        p = planet.lower() # 'earth', 'moon', 'mars', 'jupiter'
+        with self.connection:
+            self.cursor.execute(f"SELECT mine_lvl_{p}, last_coll_{p} FROM families WHERE id = %s", (family_id,))
+            return self.cursor.fetchone()

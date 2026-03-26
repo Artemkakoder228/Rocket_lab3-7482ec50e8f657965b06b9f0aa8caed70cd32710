@@ -3,6 +3,8 @@ from aiogram import Router, F, types
 from aiogram.types import WebAppInfo
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from database import Database
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import time
 
 from keyboards import main_keyboard
 # Імпортуємо актуальне посилання з вашого config.py
@@ -44,43 +46,47 @@ async def open_render_app(message: types.Message):
         await message.answer("⚠️ У вас немає сім'ї! Створіть її через /start.", reply_markup=main_keyboard())
         return
 
-    # 1. Дізнаємось поточну планету
+    # 1. Отримуємо планету та ОБОВ'ЯЗКОВО прибираємо зайві пробіли (.strip())
     family_info = db.get_family_info(family_id)
-    current_planet = family_info[5] if family_info else 'Earth'
+    current_planet = family_info[5].strip() if family_info and family_info[5] else 'Earth'
 
-    # 2. Визначаємо, який HTML файл відкрити
+    # 2. Визначаємо сторінку
     planet_pages = {
-        'Earth': '',            # Пустий рядок (відкриє index.html)
+        'Earth': '',            # index.html
         'Moon': 'Moon.html',
         'Mars': 'Mars.html',
         'Jupiter': 'Jupiter.html'
     }
     
+    # Якщо планети немає в словнику, за замовчуванням відкриваємо Землю
     page = planet_pages.get(current_planet, '')
 
-    # 3. Формуємо правильне посилання, використовуючи WEB_APP_URL з config.py
-    # Результат буде, наприклад: https://xxx.ngrok-free.dev/Moon.html?family_id=123
-    # Додаємо унікальний параметр &t=, щоб Telegram не кешував стару сторінку
-    import time
-    personal_url = f"{WEB_APP_URL}/{page}?family_id={family_id}&t={int(time.time())}"
+    # 3. Формуємо посилання без подвійних слешів
+    base_url = WEB_APP_URL.rstrip('/') # Прибираємо слеш в кінці, якщо він є в config.py
     
-    # Виводимо в консоль для перевірки (щоб ви бачили, яку лінку генерує бот)
-    print(f"[DEBUG] WebApp URL: {personal_url}")
+    if page:
+        personal_url = f"{base_url}/{page}?family_id={family_id}&t={int(time.time())}"
+    else:
+        personal_url = f"{base_url}/?family_id={family_id}&t={int(time.time())}"
 
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="🖥 ВІДКРИТИ ТЕРМІНАЛ", web_app=WebAppInfo(url=personal_url))
-    builder.button(text="🔙 Назад")
-    builder.adjust(1)
+    print(f"[DEBUG] Planeta з БД: '{current_planet}' | Згенерований URL: {personal_url}")
+
+    # 4. Створюємо Inline-кнопку під повідомленням
+    inline_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🖥 ВІДКРИТИ ТЕРМІНАЛ", web_app=WebAppInfo(url=personal_url))]
+    ])
 
     await message.answer(
         f"🛸 **БОРТОВИЙ КОМП'ЮТЕР**\n\n"
         f"📍 Поточна локація: **{current_planet}**\n"
-        f"Завантаження систем керування та інвентарю...\n"
-        f"Натисніть кнопку нижче для входу в систему.",
-        reply_markup=builder.as_markup(resize_keyboard=True),
+        f"Завантаження систем...\n"
+        f"Натисніть кнопку нижче для входу:",
+        reply_markup=inline_kb,
         parse_mode="Markdown"
     )
-
+    
+    # Оновлюємо нижню клавіатуру, щоб була кнопка "Назад"
+    await message.answer("Навігація:", reply_markup=builder.as_markup(resize_keyboard=True))
 # ==========================================
 # 3. КНОПКА "НАЗАД"
 # ==========================================
