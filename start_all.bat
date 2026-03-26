@@ -15,7 +15,7 @@ start cmd /k "title Web Server && echo Starting Flask Server... && %PY_EXE% serv
 start cmd /k "title Telegram Bot && echo Starting Bot... && %PY_EXE% main.py"
 
 :: 3. Запуск тунелю ngrok
-start cmd /k "title Ngrok Tunnel && echo Starting Ngrok... && ngrok http --domain=knavishly-nonabortive-kymani.ngrok-free.dev 8000"
+start cmd /k "title Ngrok Tunnel && echo Starting Ngrok... && ngrok http --domain=kevin-substructural-luz.ngrok-free.dev 8000"
 
 echo All services launched!
 pause
