@@ -4,15 +4,15 @@ from aiogram.types import WebAppInfo
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from database import Database
 
-# Імпорт клавіатури для кнопки "Назад"
 from keyboards import main_keyboard
+# Імпортуємо актуальне посилання з вашого config.py
+from config import WEB_APP_URL
 
 router = Router()
-db = Database() # Виправлено: прибрано зайвий аргумент 'space.db'
+db = Database()
 
 # --- ПОСИЛАННЯ ---
 ARCADE_URL = "https://artemkakoder228.github.io/Game/"
-RENDER_URL = "https://rocket-lab2.onrender.com"
 
 # ==========================================
 # 1. ОБРОБНИК ДЛЯ "КОСМІЧНИЙ БІЙ" (СТАРА ГРА)
@@ -44,19 +44,39 @@ async def open_render_app(message: types.Message):
         await message.answer("⚠️ У вас немає сім'ї! Створіть її через /start.", reply_markup=main_keyboard())
         return
 
-    # Формуємо персональне посилання з ID
-    personal_url = f"{RENDER_URL}?family_id={family_id}"
+    # 1. Дізнаємось поточну планету
+    family_info = db.get_family_info(family_id)
+    current_planet = family_info[5] if family_info else 'Earth'
+
+    # 2. Визначаємо, який HTML файл відкрити
+    planet_pages = {
+        'Earth': '',            # Пустий рядок (відкриє index.html)
+        'Moon': 'Moon.html',
+        'Mars': 'Mars.html',
+        'Jupiter': 'Jupiter.html'
+    }
+    
+    page = planet_pages.get(current_planet, '')
+
+    # 3. Формуємо правильне посилання, використовуючи WEB_APP_URL з config.py
+    # Результат буде, наприклад: https://xxx.ngrok-free.dev/Moon.html?family_id=123
+    # Додаємо унікальний параметр &t=, щоб Telegram не кешував стару сторінку
+    import time
+    personal_url = f"{WEB_APP_URL}/{page}?family_id={family_id}&t={int(time.time())}"
+    
+    # Виводимо в консоль для перевірки (щоб ви бачили, яку лінку генерує бот)
+    print(f"[DEBUG] WebApp URL: {personal_url}")
 
     builder = ReplyKeyboardBuilder()
-    # Передаємо personal_url замість загального RENDER_URL
     builder.button(text="🖥 ВІДКРИТИ ТЕРМІНАЛ", web_app=WebAppInfo(url=personal_url))
     builder.button(text="🔙 Назад")
     builder.adjust(1)
 
     await message.answer(
-        "🛸 **БОРТОВИЙ КОМП'ЮТЕР**\n\n"
-        "Завантаження систем керування та інвентарю...\n"
-        "Натисніть кнопку нижче для входу в систему.",
+        f"🛸 **БОРТОВИЙ КОМП'ЮТЕР**\n\n"
+        f"📍 Поточна локація: **{current_planet}**\n"
+        f"Завантаження систем керування та інвентарю...\n"
+        f"Натисніть кнопку нижче для входу в систему.",
         reply_markup=builder.as_markup(resize_keyboard=True),
         parse_mode="Markdown"
     )
