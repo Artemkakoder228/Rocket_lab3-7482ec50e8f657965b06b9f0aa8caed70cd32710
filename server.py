@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from database import Database
+import datetime
+import random
 import os
 
 # Вказуємо, що статичні файли (html, css, js) лежать прямо тут ('.')
@@ -124,6 +126,91 @@ def get_inventory():
         print(f"Error: {e}")
         return jsonify({'error': str(e)}), 500
 
+SHOP_ITEMS_POOL = [
+    {'id': 'iron_pack', 'name': 'Пакет Заліза', 'res_name': 'iron', 'base_amount': 500, 'base_cost': 200, 'icon': '🔩'},
+    {'id': 'fuel_pack', 'name': 'Кріо-паливо', 'res_name': 'fuel', 'base_amount': 300, 'base_cost': 250, 'icon': '⛽'},
+    {'id': 'regolith_pack', 'name': 'Місячний Реголіт', 'res_name': 'regolith', 'base_amount': 200, 'base_cost': 400, 'icon': '🌑'},
+    {'id': 'he3_pack', 'name': 'Ізотоп Гелій-3', 'res_name': 'he3', 'base_amount': 150, 'base_cost': 500, 'icon': '☣️'},
+    {'id': 'silicon_pack', 'name': 'Кремній', 'res_name': 'silicon', 'base_amount': 300, 'base_cost': 350, 'icon': '💠'},
+]
+
+@app.route('/api/daily_offers', methods=['GET'])
+def get_daily_offers():
+    # Отримуємо family_id, щоб перевірити їхні покупки
+    family_id = request.args.get('family_id')
+    purchased_today = []
+    
+    if family_id:
+        purchased_today = db.get_todays_purchases(family_id)
+
+    today = datetime.date.today()
+    random.seed(today.toordinal())
+    
+    daily_items = random.sample(SHOP_ITEMS_POOL, min(4, len(SHOP_ITEMS_POOL)))
+    offers = []
+    
+    has_free_item = random.random() < 0.20 
+    discount_count = random.randint(1, 2)
+    
+    for i, item in enumerate(daily_items):
+        discount = 0
+        
+        if has_free_item and i == 0:
+            discount = 100
+            discount_count -= 1
+        elif discount_count > 0:
+            discount = random.randint(10, 40)
+            discount_count -= 1
+            
+        final_cost = int(item['base_cost'] * (1 - discount / 100))
+        amount = item['base_amount']
+        if discount == 100:
+            amount = max(10, int(item['base_amount'] * 0.3)) 
+            
+        offers.append({
+            'id': item['id'],
+            'name': item['name'],
+            'res_name': item['res_name'],
+            'amount': amount,
+            'old_price': item['base_cost'],
+            'price': final_cost,
+            'discount': discount,
+            'icon': item['icon'],
+            # НОВИЙ ПАРАМЕТР: Перевіряємо, чи є цей товар у куплених
+            'purchased': item['id'] in purchased_today 
+        })
+        
+    random.shuffle(offers)
+    random.seed()
+    
+    return jsonify({'offers': offers})
+
+@app.route('/api/buy_shop_item', methods=['POST'])
+def buy_shop_item():
+    try:
+        data = request.json
+        family_id = data.get('family_id')
+        item_data = data.get('item')
+
+        if not family_id or not item_data:
+            return jsonify({'error': 'Недійсні дані'}), 400
+
+        success, msg = db.buy_shop_item(
+            family_id, 
+            item_data['id'],       # ТЕПЕР ПЕРЕДАЄМО ID ТОВАРУ
+            item_data['price'], 
+            item_data['res_name'], 
+            item_data['amount']
+        )
+
+        if success:
+            return jsonify({'message': msg}), 200
+        else:
+            return jsonify({'error': msg}), 400
+            
+    except Exception as e:
+        print(f"SHOP ERROR: {e}")
+        return jsonify({'error': 'Помилка транзакції'}), 500
 
 @app.route('/api/investigate', methods=['POST'])
 def investigate():

@@ -108,6 +108,16 @@ class Database:
                 )
             """)
 
+            # 6. Історія покупок у магазині (Щоденна)
+            self.cursor.execute("""
+                CREATE TABLE IF NOT EXISTS shop_purchases (
+                    id SERIAL PRIMARY KEY,
+                    family_id INTEGER REFERENCES families(id),
+                    item_id TEXT,
+                    purchase_date DATE DEFAULT CURRENT_DATE
+                )
+            """)
+
     # --- МЕТОДИ ---
 
     def create_family(self, user_id, family_name):
@@ -502,6 +512,47 @@ class Database:
             return None
     # --- НАВІГАЦІЯ ---
 
+    def get_todays_purchases(self, family_id):
+        """Отримує список ID товарів, які сім'я вже купила сьогодні"""
+        self.cursor.execute("""
+            SELECT item_id FROM shop_purchases 
+            WHERE family_id = %s AND purchase_date = CURRENT_DATE
+        """, (family_id,))
+        return [row[0] for row in self.cursor.fetchall()]
+    def buy_shop_item(self, family_id, item_id, cost, res_name, res_amount):
+        """Здійснює покупку, перевіряючи, чи не купили цей товар сьогодні"""
+        # 1. Перевіряємо, чи вже купували СЬОГОДНІ
+        self.cursor.execute("""
+            SELECT id FROM shop_purchases 
+            WHERE family_id = %s AND item_id = %s AND purchase_date = CURRENT_DATE
+        """, (family_id, item_id))
+        
+        if self.cursor.fetchone():
+            return False, "Ви вже придбали цей товар сьогодні!"
+            
+        # 2. Перевіряємо баланс
+        self.cursor.execute("SELECT balance FROM families WHERE id = %s", (family_id,))
+        balance = self.cursor.fetchone()[0]
+        
+        if balance < cost:
+            return False, "Недостатньо Спейскоїнів!"
+        
+        # 3. Списуємо гроші та видаємо ресурс
+        db_col = f"res_{res_name}"
+        self.cursor.execute(f"""
+            UPDATE families 
+            SET balance = balance - %s, 
+                {db_col} = {db_col} + %s 
+            WHERE id = %s
+        """, (cost, res_amount, family_id))
+        
+        # 4. ЗАПИСУЄМО ПОКУПКУ В ІСТОРІЮ
+        self.cursor.execute("""
+            INSERT INTO shop_purchases (family_id, item_id) 
+            VALUES (%s, %s)
+        """, (family_id, item_id))
+        
+        return True, f"Успішно придбано {res_amount} {res_name.upper()}!"
     def get_unlocked_planets(self, family_id):
         with self.connection:
             self.cursor.execute("SELECT unlocked_planets FROM families WHERE id = %s", (family_id,))
