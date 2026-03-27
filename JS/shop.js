@@ -193,9 +193,14 @@ function showToast(message, isError = false) {
 
 // Ініціалізація при завантаженні сторінки
 if (familyId) {
-    fetchBalance();
-    fetchOffers();
-    startCountdown();
+    // Створюємо асинхронну функцію, щоб запити йшли СУВОРО по черзі
+    async function initShop() {
+        await fetchBalance(); // 1. Спочатку чекаємо завантаження монет
+        await fetchOffers();  // 2. Тільки після цього вантажимо товари
+        startCountdown();     // 3. Запускаємо таймер
+    }
+    
+    initShop(); // Запускаємо нашу чергу
 } else {
     document.getElementById('offers-container').innerHTML = `<p style="color:red; text-align:center;">Помилка: Не вказано ID сім'ї</p>`;
 }
