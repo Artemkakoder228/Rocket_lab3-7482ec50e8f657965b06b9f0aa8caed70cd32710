@@ -2,60 +2,80 @@ const tg = window.Telegram.WebApp;
 tg.expand();
 
 // Відображення імені користувача
-if (tg.initDataUnsafe.user) {
+if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
     const userElement = document.querySelector('.logo span'); 
     if(userElement) {
         userElement.innerText = `👨‍🚀 ${tg.initDataUnsafe.user.username.toUpperCase()}`;
     }
 }
 
-// --- 1. НАЛАШТУВАННЯ СТАРТОВОГО СТАНУ (ДЕФОЛТ) ---
-const defaultRocketState = {
-    nose: 1, body: 1, engine: 1, fins: 1,
-    cabin: 0, cargo: 0, solar: 0, booster: 0
+// За замовчуванням базові деталі завжди мають рівень 1, щоб ракета НЕ ЗНИКАЛА
+let rocketState = { nose: 1, body: 1, engine: 1, fins: 1, cabin: 0, cargo: 0, solar: 0, booster: 0 };
+let selectedModuleKey = null;
+let userOwnedModules = []; 
+
+// === ТОЧНІ ID МОДУЛІВ З ВАШОЇ БАЗИ ДАНИХ (server.py) ===
+const PLANET_MODULE_POOLS = {
+    'EARTH': ['gu1', 'gu2', 'nc1', 'h1', 'e1', 'e2', 'a1', 'a2'],
+    'MOON':  ['root1', 'branch1_up1', 'branch1_up2', 'branch1_down1', 'root2', 'branch2_up', 'branch2_down', 'root3', 'branch3'],
+    'MARS':  ['g1_1', 'g1_2', 'g1_up', 'g1_down', 'g1_end', 'g2_1', 'g2_up', 'g2_down', 'g3_a1', 'g3_a2', 'g3_b1', 'g3_b2'],
+    'JUPITER': ['hull_start', 'hull_mk2', 'solar_upg', 'solar_max', 'aux_bay', 'combat_bay', 'cannons', 'eng_start', 'eng_ultimate', 'eng_side', 'nose_start', 'nose_adv']
 };
 
-// --- 2. ФУНКЦІЯ ЗАВАНТАЖЕННЯ ---
-function loadRocketState() {
-    const savedData = localStorage.getItem('myRocketSave');
-    if (savedData) {
-        return JSON.parse(savedData);
-    } else {
-        return JSON.parse(JSON.stringify(defaultRocketState));
-    }
-}
-
-let rocketState = loadRocketState();
-let selectedModuleKey = null;
-
 document.addEventListener("DOMContentLoaded", () => {
-    console.log('🚀 Rocket Lab Loading...');
-    console.log('📦 Loaded State:', rocketState);
+    console.log('🚀 Rocket Lab Hangar Loading...');
 
     initHyperSpace();
-    updateRocketVisuals();
-    initInteractions();
+    initInteractions(); 
     initNavigation();
 
-    // Запуск оновлення ресурсів
     updateEarthResources();
     setInterval(updateEarthResources, 5000);
-
-    console.log('✅ Rocket Lab Ready!');
 });
 
-// --- 3. ОНОВЛЕННЯ ГРАФІКИ ---
-function updateRocketVisuals() {
+// Перетворення TIER (I, II, III) у числа
+function romanToNum(roman) {
+    const map = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6, 'VII': 7, 'VIII': 8 };
+    return map[roman] || 0;
+}
+
+// Визначення поточної планети з меню
+function getCurrentPlanetName() {
+    const activePlanet = document.querySelector('.planet-item.active .planet-name');
+    if (activePlanet) return activePlanet.innerText.trim().toUpperCase();
+    return 'EARTH';
+}
+
+// Фільтрація: залишаємо тільки модулі цієї планети
+function filterModulesByPlanet(modules) {
+    const currentPlanet = getCurrentPlanetName();
+    const allowedIds = PLANET_MODULE_POOLS[currentPlanet] || [];
+    return modules.filter(mod => allowedIds.includes(mod.id));
+}
+
+// ОНОВЛЕННЯ ГРАФІКИ
+function updateRocketVisualsFromServer(modules) {
+    // Базові деталі не можуть бути менше 1
+    let newState = { nose: 1, body: 1, engine: 1, fins: 1, cabin: 0, cargo: 0, solar: 0, booster: 0 };
+    
+    const planetSpecificModules = filterModulesByPlanet(modules);
+
+    planetSpecificModules.forEach(mod => {
+        let level = romanToNum(mod.tier);
+        if (level > newState[mod.type]) {
+            newState[mod.type] = level;
+        }
+    });
+    
+    rocketState = newState;
+
     for (const [key, level] of Object.entries(rocketState)) {
         const elements = document.querySelectorAll(`[data-module="${key}"]`);
         elements.forEach(el => {
-            el.classList.remove('tier-0', 'tier-1', 'tier-2');
+            el.className = el.className.replace(/tier-\d+/g, '').trim();
             if (level > 0) {
                 el.classList.add(`tier-${level}`);
-                el.style.display = '';
-                if (window.getComputedStyle(el).display === 'none') {
-                     el.style.display = 'block';
-                }
+                el.style.display = 'block';
             } else {
                 el.style.display = 'none';
             }
@@ -63,119 +83,107 @@ function updateRocketVisuals() {
     }
 }
 
-// --- ЛОГІКА АПГРЕЙДУ ---
-function upgradeSelectedModule() {
-    if (!selectedModuleKey) return;
-    if (rocketState[selectedModuleKey] === 0) {
-        alert("Цей модуль ще не встановлено! Перейдіть у Дерево Розробок.");
-        return;
-    }
-
-    const currentLevel = rocketState[selectedModuleKey];
-    const btn = document.querySelector('.upgrade-btn');
-
-    if (currentLevel < 2) {
-        btn.innerText = "INSTALLING...";
-        setTimeout(() => {
-            rocketState[selectedModuleKey]++;
-            localStorage.setItem('myRocketSave', JSON.stringify(rocketState));
-            updateRocketVisuals();
-            refreshInfoPanel(selectedModuleKey);
-            btn.innerText = "COMPLETE!";
-            setTimeout(() => {
-                updateButtonState(rocketState[selectedModuleKey]);
-            }, 1000);
-        }, 500);
-    }
-}
-
-function updateButtonState(level) {
-    const btn = document.querySelector('.upgrade-btn');
-    if (level === 0) {
-        btn.innerText = "LOCKED (RESEARCH NEEDED)";
-        btn.style.background = "#333";
-        btn.style.color = "#888";
-    } else if (level === 1) {
-        btn.innerText = "UPGRADE TO MK-2 (5000 $)";
-        btn.style.background = "rgba(0, 243, 255, 0.1)";
-        btn.style.color = "var(--accent-cyan)";
-        btn.disabled = false;
-    } else {
-        btn.innerText = "MAX LEVEL";
-        btn.style.background = "var(--accent-green)";
-        btn.style.color = "black";
-        btn.disabled = true;
-    }
-}
-
+// АДАПТАЦІЯ ПІД ТЕЛЕФОН (Тапи замість мишки)
 function initInteractions() {
     const modules = document.querySelectorAll('.module');
     const panel = document.getElementById('infoPanel');
-    const upgradeBtn = document.querySelector('.upgrade-btn');
-
-    if(upgradeBtn) {
-        upgradeBtn.addEventListener('click', upgradeSelectedModule);
-    }
 
     modules.forEach(mod => {
-        mod.addEventListener('mouseenter', () => {
+        mod.addEventListener('click', (e) => {
+            e.stopPropagation(); 
             const key = mod.getAttribute('data-module');
             selectedModuleKey = key;
             refreshInfoPanel(key);
+            
+            if(tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
             panel.classList.add('active');
         });
-        mod.addEventListener('click', () => {
-             selectedModuleKey = mod.getAttribute('data-module');
-             refreshInfoPanel(selectedModuleKey);
-        });
+    });
+
+    document.addEventListener('click', (e) => {
+        if (panel && panel.classList.contains('active') && !panel.contains(e.target)) {
+            panel.classList.remove('active');
+            selectedModuleKey = null;
+        }
     });
 }
 
+// ІНФО ПАНЕЛЬ
 function refreshInfoPanel(key) {
-    const currentLevel = rocketState[key] || 0;
-    const nodes = window.treeNodes || [];
-    const activeNode = nodes.find(n => n.rocketKey === key && n.level === currentLevel);
-    const nextNode = nodes.find(n => n.rocketKey === key && n.level === currentLevel + 1);
-
     const pTitle = document.getElementById('panelTitle');
     const pDesc = document.getElementById('panelDesc');
     const btn = document.querySelector('.upgrade-btn');
+    const statLevel = document.getElementById('statLevel');
+    const barLevel = document.getElementById('barLevel');
 
-    if (activeNode) {
-        pTitle.innerText = activeNode.name.toUpperCase();
-        pDesc.innerText = activeNode.desc;
-        if (nextNode) {
-            const cost = nextNode.cost;
-            btn.innerText = `UPGRADE: ${cost.iron}🔩 | ${cost.coins}🪙`;
-            btn.style.display = 'block';
-            btn.disabled = false;
-        } else {
-            btn.innerText = "MAX LEVEL REACHED";
-            btn.disabled = true;
-            btn.style.background = "var(--accent-green)";
+    const planetSpecificOwnedModules = filterModulesByPlanet(userOwnedModules);
+
+    let bestModule = null;
+    let bestLevel = 0;
+
+    planetSpecificOwnedModules.forEach(mod => {
+        if (mod.type === key) {
+            let lvl = romanToNum(mod.tier);
+            if (lvl > bestLevel) {
+                bestLevel = lvl;
+                bestModule = mod;
+            }
         }
-    } else {
-        pTitle.innerText = "LOCKED MODULE";
-        pDesc.innerText = "Дослідіть цей модуль у дереві розробок.";
-        btn.innerText = "GO TO TECH TREE";
-    }
+    });
 
-    const levelPercent = (currentLevel / 2) * 100;
-    document.getElementById('barLevel').style.width = `${levelPercent}%`;
-    document.getElementById('statLevel').innerText = `MK-${currentLevel}`;
+    if (bestModule) {
+        pTitle.innerText = bestModule.name.toUpperCase();
+        
+        let statsText = "СТАТУС: Встановлено\n\nХАРАКТЕРИСТИКИ:\n";
+        for (const [statName, statVal] of Object.entries(bestModule.stats)) {
+            const statMap = { speed: "Швидкість", armor: "Броня", aerodynamics: "Аеродинаміка", handling: "Керування", damage: "Шкода" };
+            const niceName = statMap[statName] || statName;
+            statsText += `▸ ${niceName}: +${statVal}\n`;
+        }
+        pDesc.innerText = statsText;
+
+        statLevel.innerText = `TIER ${bestModule.tier}`;
+        barLevel.style.width = `${(bestLevel / 8) * 100}%`; 
+        
+        if (btn) btn.style.display = 'none'; 
+    } else {
+        pTitle.innerText = "МОДУЛЬ ВІДСУТНІЙ";
+        
+        const currentPlanet = getCurrentPlanetName();
+        let treeFile = 'tree_Earth.html';
+        let planetNiceName = 'ЗЕМЛЯ';
+
+        if(currentPlanet === 'MOON') { treeFile = 'tree_Moon.html'; planetNiceName = 'МІСЯЦЬ'; }
+        else if(currentPlanet === 'MARS') { treeFile = 'tree_Mars.html'; planetNiceName = 'МАРС'; }
+        else if(currentPlanet === 'JUPITER') { treeFile = 'tree_Jupiter.html'; planetNiceName = 'ЮПІТЕР'; }
+
+        pDesc.innerText = `Цей слот порожній для планети ${planetNiceName}.\n\nПерейдіть до Дерева розробок ${planetNiceName}, щоб дослідити та встановити необхідні технології.`;
+        statLevel.innerText = "TIER 0";
+        barLevel.style.width = "0%";
+        
+        if (btn) {
+            btn.style.display = 'block';
+            btn.innerText = `🚀 ДЕРЕВО РОЗРОБОК`;
+            btn.style.background = "linear-gradient(90deg, #00ffcc, #00b38f)";
+            btn.style.color = "#000";
+            
+            btn.onclick = () => { 
+                if(typeof window.navigateTo === 'function') window.navigateTo(treeFile);
+                else window.location.href = treeFile + window.location.search;
+            };
+        }
+    }
 }
 
-// --- НАВІГАЦІЯ (ВИПРАВЛЕНО) ---
+// НАВІГАЦІЯ
 function initNavigation() {
-    // 1. Кнопки планет
     const planets = document.querySelectorAll('.planet-item');
-
     planets.forEach(planet => {
         planet.addEventListener('click', () => {
             const nameElement = planet.querySelector('.planet-name');
             if (!nameElement) return;
 
-            const name = nameElement.innerText.trim();
+            const name = nameElement.innerText.trim().toUpperCase();
             let targetPage = '';
 
             switch (name) {
@@ -186,53 +194,46 @@ function initNavigation() {
             }
 
             if (targetPage) {
-                console.log(`Navigating to: ${targetPage}`);
-                // ВИКОРИСТОВУЄМО НОВУ ФУНКЦІЮ
-                window.navigateTo(targetPage);
+                if(typeof window.navigateTo === 'function') window.navigateTo(targetPage);
+                else window.location.href = targetPage + window.location.search;
             }
         });
     });
 
-    // 2. Кнопка Дерева Розробок
     const treeBtn = document.querySelector('.tech-tree-btn');
     if (treeBtn) {
         treeBtn.addEventListener('click', () => {
-            const activePlanet = document.querySelector('.planet-item.active');
+            const currentPlanet = getCurrentPlanetName();
             let treeFile = 'tree_Earth.html';
+            if(currentPlanet === 'MOON') treeFile = 'tree_Moon.html';
+            else if(currentPlanet === 'MARS') treeFile = 'tree_Mars.html';
+            else if(currentPlanet === 'JUPITER') treeFile = 'tree_Jupiter.html';
 
-            if (activePlanet) {
-                const planetName = activePlanet.querySelector('.planet-name').innerText.trim();
-                if (planetName === 'MOON') treeFile = 'tree_Moon.html';
-                else if (planetName === 'MARS') treeFile = 'tree_Mars.html';
-                else if (planetName === 'JUPITER') treeFile = 'tree_Jupiter.html';
-            }
-            // ВИКОРИСТОВУЄМО НОВУ ФУНКЦІЮ
-            window.navigateTo(treeFile);
+            if(typeof window.navigateTo === 'function') window.navigateTo(treeFile);
+            else window.location.href = treeFile + window.location.search;
         });
     }
 
-    // 3. Кнопка Інвентарю
     const inventoryBtn = document.querySelector('.status-badge.inventory-sq');
     if (inventoryBtn) {
         inventoryBtn.addEventListener('click', () => {
-            // ВИКОРИСТОВУЄМО НОВУ ФУНКЦІЮ (вона сама додасть ID)
-            window.navigateTo('inventory.html');
+            if(typeof window.navigateTo === 'function') window.navigateTo('inventory.html');
+            else window.location.href = 'inventory.html' + window.location.search;
         });
     }
 }
 
-// --- ФОНОВІ ЗІРКИ ---
+// ФОНОВІ ЗІРКИ
 function initHyperSpace() {
     const container = document.getElementById('space-container');
     if (!container) return;
     container.innerHTML = '';
-    const starCount = 300;
+    const starCount = 150;
 
     for (let i = 0; i < starCount; i++) {
         const star = document.createElement('div');
         star.classList.add('star');
-        const x = Math.random() * 100;
-        star.style.left = `${x}%`;
+        star.style.left = `${Math.random() * 100}%`;
 
         const depth = Math.random();
         let size, duration;
@@ -244,12 +245,10 @@ function initHyperSpace() {
         } else if (depth > 0.6) {
             size = Math.random() * 2 + 1;
             duration = Math.random() * 2 + 2;
-            if (Math.random() > 0.8) star.classList.add('blue');
         } else {
             size = Math.random() * 1.5 + 0.5;
             duration = Math.random() * 5 + 5;
             star.style.opacity = Math.random() * 0.5 + 0.1;
-            if (Math.random() > 0.9) star.classList.add('nebula');
         }
 
         star.style.width = `${size}px`;
@@ -260,18 +259,7 @@ function initHyperSpace() {
     }
 }
 
-// --- ДАНІ МОДУЛІВ ---
-const modulesData = {
-    nose: { title: "Nose Cone", desc: "Aerodynamic cap.", integrity: 98, level: 10 },
-    cabin: { title: "Crew Deck", desc: "Pressurized module.", integrity: 100, level: 60 },
-    cargo: { title: "Cargo Hold", desc: "Capacity: 15 Tons.", integrity: 92, level: 30 },
-    solar: { title: "Solar Array", desc: "Generates power.", integrity: 88, level: 55 },
-    body: { title: "Fuel Tank", desc: "Liquid Hydrogen.", integrity: 85, level: 40 },
-    booster: { title: "Solid Booster", desc: "Lift-off thrust.", integrity: 99, level: 25 },
-    fins: { title: "Grid Fins", desc: "Stabilization.", integrity: 78, level: 35 },
-    engine: { title: "Raptor Engine", desc: "Main propulsion.", integrity: 94, level: 90 }
-};
-
+// ЗАВАНТАЖЕННЯ ДАНИХ
 async function updateEarthResources() {
     const urlParams = new URLSearchParams(window.location.search);
     const familyId = urlParams.get('family_id');
@@ -285,16 +273,20 @@ async function updateEarthResources() {
         const data = await response.json();
 
         if (data.resources) {
-            const coinsEl = document.getElementById('val-coins');
-            if (coinsEl) coinsEl.innerText = data.resources.coins;
-
-            const ironEl = document.getElementById('val-iron');
-            if (ironEl) ironEl.innerText = data.resources.iron;
-
-            const fuelEl = document.getElementById('val-fuel');
-            if (fuelEl) fuelEl.innerText = data.resources.fuel;
+            if (document.getElementById('val-coins')) document.getElementById('val-coins').innerText = data.resources.coins;
+            if (document.getElementById('val-iron')) document.getElementById('val-iron').innerText = data.resources.iron;
+            if (document.getElementById('val-fuel')) document.getElementById('val-fuel').innerText = data.resources.fuel;
+        }
+        
+        if (data.modules) {
+            userOwnedModules = data.modules; 
+            updateRocketVisualsFromServer(data.modules); 
+            
+            if (selectedModuleKey) {
+                refreshInfoPanel(selectedModuleKey);
+            }
         }
     } catch (error) {
-        console.error("Помилка отримання ресурсів:", error);
+        console.error("Помилка отримання даних з БД:", error);
     }
 }
