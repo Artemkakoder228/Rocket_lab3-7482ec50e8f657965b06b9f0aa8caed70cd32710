@@ -87,11 +87,8 @@ function updateRocketVisualsFromServer(modules) {
 function initInteractions() {
     const modules = document.querySelectorAll('.module');
     const panel = document.getElementById('infoPanel');
-    const upgradeBtn = document.querySelector('.upgrade-btn');
-
-    if(upgradeBtn) {
-        upgradeBtn.addEventListener('click', upgradeSelectedModule);
-    }
+    
+    // Ми ПРИБРАЛИ звідси неіснуючу функцію upgradeSelectedModule, яка ламала код
 
     modules.forEach(mod => {
         mod.addEventListener('mouseenter', () => {
@@ -102,7 +99,7 @@ function initInteractions() {
         });
         
         mod.addEventListener('click', (e) => {
-            e.stopPropagation(); // Зупиняємо клік, щоб він не пройшов далі до document
+            e.stopPropagation(); // Зупиняємо клік
             selectedModuleKey = mod.getAttribute('data-module');
             refreshInfoPanel(selectedModuleKey);
             panel.classList.add('active');
@@ -119,16 +116,13 @@ function initInteractions() {
 
 // ІНФО ПАНЕЛЬ
 function refreshInfoPanel(key) {
-    // === НОВЕ: Вмикаємо статистику та прибираємо стиль очікування ===
+    // Вмикаємо статистику та прибираємо стиль очікування
     const stats = document.getElementById('statsContainer');
     if (stats) stats.style.display = 'block';
     
     const pTitle = document.getElementById('panelTitle');
     const pDesc = document.getElementById('panelDesc');
-    
-    // Вирівнюємо текст по лівому краю (бо в стані з шестернею він по центру)
     pDesc.style.textAlign = 'left';
-    // =================================================================
 
     const btn = document.querySelector('.upgrade-btn');
     const statLevel = document.getElementById('statLevel');

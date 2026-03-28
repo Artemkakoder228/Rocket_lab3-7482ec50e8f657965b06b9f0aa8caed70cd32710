@@ -28,23 +28,28 @@ CATALOG = {
 
     # --- МІСЯЦЬ (Moon) ---
     'root1': {'name': 'Сталевий Корпус', 'type': 'body', 'tier': 'II', 'cost': {'regolith': 0, 'he3': 0, 'coins': 0}, 'stats': {'armor': 120}},
-    'branch1_up1': {'name': 'Вантажний Відсік', 'type': 'body', 'tier': 'III', 'cost': {'regolith': 500, 'he3': 200, 'coins': 800}, 'stats': {'armor': 200}},
-    'branch1_up2': {'name': 'Сонячні Панелі', 'type': 'body', 'tier': 'IV', 'cost': {'regolith': 700, 'he3': 400, 'coins': 1200}, 'stats': {'armor': 250}},
+    'branch1_up1': {'name': 'Вантажний Відсік', 'type': 'cargo', 'tier': 'III', 'cost': {'regolith': 500, 'he3': 200, 'coins': 800}, 'stats': {'armor': 200}},
+    'branch1_up2': {'name': 'Сонячні Панелі', 'type': 'solar', 'tier': 'IV', 'cost': {'regolith': 700, 'he3': 400, 'coins': 1200}, 'stats': {'armor': 250}},
     'branch1_down1': {'name': 'Аеро-надкрилки', 'type': 'fins', 'tier': 'III', 'cost': {'regolith': 400, 'he3': 150, 'coins': 900}, 'stats': {'handling': 65}},
 
     'root2': {'name': 'Турбо-нагнітач', 'type': 'engine', 'tier': 'II', 'cost': {'regolith': 0, 'he3': 0, 'coins': 0}, 'stats': {'speed': 75}},
     'branch2_up': {'name': 'Турбо-Форсаж', 'type': 'engine', 'tier': 'III', 'cost': {'regolith': 800, 'he3': 600, 'coins': 1500}, 'stats': {'speed': 150}},
-    'branch2_down': {'name': 'Бокові Рушії', 'type': 'engine', 'tier': 'II', 'cost': {'regolith': 600, 'he3': 400, 'coins': 1000}, 'stats': {'speed': 100}},
+    # ВИПРАВЛЕНО: Змінено type на 'booster' для бокових турбін
+    'branch2_down': {'name': 'Бокові Рушії', 'type': 'booster', 'tier': 'II', 'cost': {'regolith': 600, 'he3': 400, 'coins': 1000}, 'stats': {'speed': 100}},
 
-    'root3': {'name': 'Сенсорний шпиль', 'type': 'nose', 'tier': 'II', 'cost': {'regolith': 0, 'he3': 0, 'coins': 0}, 'stats': {'aerodynamics': 25}},
+    # ВИПРАВЛЕНО: Змінено type на 'cabin' для відсіку з вікном
+    'root3': {'name': 'Кабіна Екіпажу', 'type': 'cabin', 'tier': 'II', 'cost': {'regolith': 0, 'he3': 0, 'coins': 0}, 'stats': {'aerodynamics': 25}},
     'branch3': {'name': 'Керамічний Щит', 'type': 'nose', 'tier': 'III', 'cost': {'regolith': 500, 'he3': 300, 'coins': 1100}, 'stats': {'aerodynamics': 55}},
 
     # --- МАРС (Mars) ---
-    'g1_1': {'name': 'Вантажний Відсік', 'type': 'body', 'tier': 'III', 'cost': {'silicon': 0, 'oxide': 0, 'coins': 0}, 'stats': {'armor': 200}},
+    # ВИПРАВЛЕНО: 'type': 'cargo'
+    'g1_1': {'name': 'Вантажний Відсік', 'type': 'cargo', 'tier': 'III', 'cost': {'silicon': 0, 'oxide': 0, 'coins': 0}, 'stats': {'armor': 200}},
     'g1_2': {'name': 'Герметизація', 'type': 'body', 'tier': 'IV', 'cost': {'silicon': 900, 'oxide': 500, 'coins': 2500}, 'stats': {'armor': 450}},
     'g1_up': {'name': 'Панель Оновлення', 'type': 'body', 'tier': 'III', 'cost': {'silicon': 1200, 'oxide': 800, 'coins': 3500}, 'stats': {'armor': 350}},
-    'g1_down': {'name': 'Сонячні Панелі', 'type': 'body', 'tier': 'V', 'cost': {'silicon': 1000, 'oxide': 600, 'coins': 3000}, 'stats': {'armor': 600}},
-    'g1_end': {'name': 'Нові Панелі MK-II', 'type': 'body', 'tier': 'VI', 'cost': {'silicon': 1500, 'oxide': 1000, 'coins': 5000}, 'stats': {'armor': 900}},
+    # ВИПРАВЛЕНО: 'type': 'solar'
+    'g1_down': {'name': 'Сонячні Панелі', 'type': 'solar', 'tier': 'V', 'cost': {'silicon': 1000, 'oxide': 600, 'coins': 3000}, 'stats': {'armor': 600}},
+    # ВИПРАВЛЕНО: 'type': 'solar'
+    'g1_end': {'name': 'Нові Панелі MK-II', 'type': 'solar', 'tier': 'VI', 'cost': {'silicon': 1500, 'oxide': 1000, 'coins': 5000}, 'stats': {'armor': 900}},
 
     'g2_1': {'name': 'Турбо-Форсаж', 'type': 'engine', 'tier': 'III', 'cost': {'silicon': 0, 'oxide': 0, 'coins': 0}, 'stats': {'speed': 150}},
     'g2_up': {'name': 'Покращений Форсаж', 'type': 'engine', 'tier': 'IV', 'cost': {'silicon': 1800, 'oxide': 1200, 'coins': 4500}, 'stats': {'speed': 320}},
@@ -58,10 +63,15 @@ CATALOG = {
     # --- ЮПІТЕР (Jupiter) ---
     'hull_start': {'name': 'Герметизація', 'type': 'body', 'tier': 'IV', 'cost': {'hydrogen': 0, 'helium': 0, 'coins': 0}, 'stats': {'armor': 450}},
     'hull_mk2': {'name': 'Композитний Корпус', 'type': 'body', 'tier': 'V', 'cost': {'hydrogen': 3000, 'helium': 2000, 'coins': 8000}, 'stats': {'armor': 1200}},
-    'solar_upg': {'name': 'Фотоелементи MK-2', 'type': 'body', 'tier': 'VII', 'cost': {'hydrogen': 4000, 'helium': 2500, 'coins': 10000}, 'stats': {'armor': 1800}},
-    'solar_max': {'name': 'Квантові Панелі', 'type': 'body', 'tier': 'VIII', 'cost': {'hydrogen': 6000, 'helium': 4000, 'coins': 15000}, 'stats': {'armor': 3000}},
-    'aux_bay': {'name': 'Допоміжні Відсіки', 'type': 'body', 'tier': 'V', 'cost': {'hydrogen': 3500, 'helium': 2500, 'coins': 7500}, 'stats': {'armor': 1000}},
-    'combat_bay': {'name': 'Бойовий Модуль', 'type': 'body', 'tier': 'VI', 'cost': {'hydrogen': 5500, 'helium': 4500, 'coins': 12000}, 'stats': {'armor': 1500}},
+    # ВИПРАВЛЕНО: 'type': 'solar'
+    'solar_upg': {'name': 'Фотоелементи MK-2', 'type': 'solar', 'tier': 'VII', 'cost': {'hydrogen': 4000, 'helium': 2500, 'coins': 10000}, 'stats': {'armor': 1800}},
+    # ВИПРАВЛЕНО: 'type': 'solar'
+    'solar_max': {'name': 'Квантові Панелі', 'type': 'solar', 'tier': 'VIII', 'cost': {'hydrogen': 6000, 'helium': 4000, 'coins': 15000}, 'stats': {'armor': 3000}},
+    
+    # Залежно від вашого HTML, можливо ці теж треба змінити на 'cargo' або 'cabin'
+    'aux_bay': {'name': 'Допоміжні Відсіки', 'type': 'cargo', 'tier': 'V', 'cost': {'hydrogen': 3500, 'helium': 2500, 'coins': 7500}, 'stats': {'armor': 1000}},
+    'combat_bay': {'name': 'Бойовий Модуль', 'type': 'cargo', 'tier': 'VI', 'cost': {'hydrogen': 5500, 'helium': 4500, 'coins': 12000}, 'stats': {'armor': 1500}},
+    
     'cannons': {'name': 'Плазмові Гармати', 'type': 'weapons', 'tier': 'I', 'cost': {'hydrogen': 8000, 'helium': 6000, 'coins': 20000}, 'stats': {'damage': 350}},
 
     'eng_start': {'name': 'Форсаж', 'type': 'engine', 'tier': 'IV', 'cost': {'hydrogen': 0, 'helium': 0, 'coins': 0}, 'stats': {'speed': 320}},
@@ -71,7 +81,6 @@ CATALOG = {
     'nose_start': {'name': 'Титановий Конус', 'type': 'nose', 'tier': 'IV', 'cost': {'hydrogen': 0, 'helium': 0, 'coins': 0}, 'stats': {'aerodynamics': 90}},
     'nose_adv': {'name': 'Аеро-Композит', 'type': 'nose', 'tier': 'V', 'cost': {'hydrogen': 4500, 'helium': 3000, 'coins': 9000}, 'stats': {'aerodynamics': 200}},
 }
-
 # --- НОВІ МАРШРУТИ ДЛЯ САЙТУ ---
 
 @app.route('/')
