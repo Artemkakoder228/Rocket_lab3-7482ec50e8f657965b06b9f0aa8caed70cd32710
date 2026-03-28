@@ -1,15 +1,19 @@
 const canvas = document.getElementById('canvas');
 const viewport = document.getElementById('viewport');
 
-// Змінні для позиції
+// Змінні для позиції та зуму
 let currentX = 0; 
 let currentY = 0; 
 let isDragging = false;
 let startX, startY;
-let scale = 1;              // Поточний масштаб
-const MIN_SCALE = 0.3;      // Мінімальне зменшення
-const MAX_SCALE = 3.0;      // Максимальне збільшення
-const ZOOM_SPEED = 0.001;
+let scale = 1;              
+const MIN_SCALE = 0.3;      
+const MAX_SCALE = 3.0;      
+
+// Для телефонів (Pinch-to-zoom)
+let initialPinchDistance = null;
+let initialScale = 1;
+
 const NODE_WIDTH = 150;
 const NODE_HEIGHT = 145;
 
@@ -23,7 +27,7 @@ window.treeNodes = [
         x: 1000, y: 1000,
         req: null, owned: true, img: 'images/Nose.png',
         rocketKey: 'nose', level: 1,
-        cost: { iron: 0, fuel: 0, coins: 0 } // Вже куплено
+        cost: { iron: 0, fuel: 0, coins: 0 } 
     },
     {
         id: 'gu2',
@@ -33,7 +37,7 @@ window.treeNodes = [
         x: 1400, y: 1000,
         req: 'gu1', owned: false, img: 'images/Nose.png',
         rocketKey: 'nose', level: 2,
-        cost: { iron: 500, fuel: 100, coins: 250 } // Коштує ресурсів
+        cost: { iron: 500, fuel: 100, coins: 250 } 
     },
 
     // --- КАТЕГОРІЯ 2: КОРПУС (BODY) ---
@@ -55,7 +59,7 @@ window.treeNodes = [
         x: 1400, y: 1250,
         req: 'nc1', owned: false, img: 'images/Korpus.png',
         rocketKey: 'body', level: 2,
-        cost: { iron: 800, fuel: 50, coins: 400 } // Корпус вимагає багато заліза
+        cost: { iron: 800, fuel: 50, coins: 400 } 
     },
 
     // --- КАТЕГОРІЯ 3: ДВИГУН (ENGINE) ---
@@ -77,7 +81,7 @@ window.treeNodes = [
         x: 1400, y: 1500,
         req: 'e1', owned: false, img: 'images/Turbina.png',
         rocketKey: 'engine', level: 2,
-        cost: { iron: 400, fuel: 300, coins: 600 } // Двигун дорогий у грошах і паливі
+        cost: { iron: 400, fuel: 300, coins: 600 } 
     },
 
     // --- КАТЕГОРІЯ 4: КРИЛА (FINS) ---
@@ -103,9 +107,17 @@ window.treeNodes = [
     }
 ];
 
-// --- DRAG LOGIC ---
+// ===================================================================
+// --- РУХ ТА ЗУМ ДЛЯ ПК І ТЕЛЕФОНІВ (МИШКА + СЕНСОРНІ ЕКРАНИ) ---
+// ===================================================================
+
+function updateCanvasPosition() {
+    canvas.style.transform = `translate(${currentX}px, ${currentY}px) scale(${scale})`;
+}
+
+// --- 1. КЕРУВАННЯ МИШКОЮ (ПК) ---
 viewport.addEventListener('mousedown', (e) => {
-    if (e.target.closest('.node')) return;
+    if (e.target.closest('.node') || e.target.closest('.action-btn') || e.target.closest('.back-btn')) return;
     isDragging = true;
     startX = e.clientX - currentX;
     startY = e.clientY - currentY;
@@ -125,11 +137,79 @@ window.addEventListener('mouseup', () => {
     viewport.style.cursor = 'grab';
 });
 
-function updateCanvasPosition() {
-    canvas.style.transform = `translate(${currentX}px, ${currentY}px) scale(${scale})`;
-}
+viewport.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const xs = (e.clientX - currentX) / scale;
+    const ys = (e.clientY - currentY) / scale;
+    const factor = (e.deltaY > 0) ? 0.9 : 1.1; 
+    let newScale = scale * factor;
+    newScale = Math.max(MIN_SCALE, Math.min(newScale, MAX_SCALE));
+    currentX -= xs * (newScale - scale);
+    currentY -= ys * (newScale - scale);
+    scale = newScale;
+    updateCanvasPosition();
+}, { passive: false });
 
-// --- INIT ---
+// --- 2. КЕРУВАННЯ ПАЛЬЦЯМИ (ТЕЛЕФОН) ---
+viewport.addEventListener('touchstart', (e) => {
+    if (e.target.closest('.node') || e.target.closest('.action-btn') || e.target.closest('.back-btn')) return;
+    
+    if (e.touches.length === 1) {
+        // Один палець - перетягування гілки
+        isDragging = true;
+        startX = e.touches[0].clientX - currentX;
+        startY = e.touches[0].clientY - currentY;
+    } else if (e.touches.length === 2) {
+        // Два пальці - старт зуму
+        isDragging = false; 
+        initialPinchDistance = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+        );
+        initialScale = scale;
+    }
+}, { passive: false });
+
+window.addEventListener('touchmove', (e) => {
+    if (!isDragging && !initialPinchDistance) return;
+    
+    if (e.cancelable) e.preventDefault();
+
+    if (e.touches.length === 1 && isDragging) {
+        currentX = e.touches[0].clientX - startX;
+        currentY = e.touches[0].clientY - startY;
+        updateCanvasPosition();
+    } else if (e.touches.length === 2 && initialPinchDistance) {
+        const currentPinchDistance = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+        );
+        
+        const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+        const xs = (centerX - currentX) / scale;
+        const ys = (centerY - currentY) / scale;
+
+        let newScale = initialScale * (currentPinchDistance / initialPinchDistance);
+        newScale = Math.max(MIN_SCALE, Math.min(newScale, MAX_SCALE));
+
+        currentX -= xs * (newScale - scale);
+        currentY -= ys * (newScale - scale);
+        scale = newScale;
+        updateCanvasPosition();
+    }
+}, { passive: false });
+
+window.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) initialPinchDistance = null;
+    if (e.touches.length === 0) isDragging = false;
+});
+
+// ===================================================================
+// --- ІНІЦІАЛІЗАЦІЯ ДЕРЕВА ТА БД ---
+// ===================================================================
+
 async function init() {
     canvas.style.transformOrigin = '0 0';
     
@@ -154,8 +234,8 @@ async function init() {
     treeNodes.forEach(node => {
         const div = document.createElement('div');
         div.className = 'node';
-        if (node.owned) div.classList.add('owned', 'researched'); // Додано researched для стилів
-        div.id = node.id; // Змінено на чистий ID для легшого пошуку
+        if (node.owned) div.classList.add('owned', 'researched'); 
+        div.id = node.id; 
         
         // Позиціонування
         div.style.left = node.x + 'px';
@@ -203,7 +283,7 @@ function drawLine(node) {
 
     const line = document.createElement('div');
     line.className = 'line';
-    if (node.owned) line.classList.add('highlight'); // Підсвітка лінії, якщо куплено
+    if (node.owned) line.classList.add('highlight'); 
     line.id = `line-${node.id}`;
 
     const startX = parent.x + NODE_WIDTH;
@@ -227,7 +307,7 @@ function highlightPath(nodeId) {
     document.querySelectorAll('.node, .line').forEach(el => el.classList.remove('highlight'));
     let currentId = nodeId;
     while (currentId) {
-        document.getElementById(currentId)?.classList.add('highlight'); // Виправлено пошук ID
+        document.getElementById(currentId)?.classList.add('highlight'); 
         document.getElementById(`line-${currentId}`)?.classList.add('highlight');
         const node = treeNodes.find(n => n.id === currentId);
         currentId = node ? node.req : null;
@@ -288,7 +368,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const familyId = urlParams.get('family_id');
     
-    // Виправлено пошук кнопки (клас .back-btn як у вашому HTML)
     const backBtn = document.querySelector('.back-btn'); 
     const path = window.location.pathname;
     
@@ -309,22 +388,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
-
-// --- ЛОГІКА ЗУМУ ---
-viewport.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const xs = (e.clientX - currentX) / scale;
-    const ys = (e.clientY - currentY) / scale;
-    const delta = -e.deltaY;
-    const factor = (delta > 0) ? 1.1 : 0.9;
-    let newScale = scale * factor;
-    if (newScale < MIN_SCALE) newScale = MIN_SCALE;
-    if (newScale > MAX_SCALE) newScale = MAX_SCALE;
-    currentX -= xs * (newScale - scale);
-    currentY -= ys * (newScale - scale);
-    scale = newScale;
-    updateCanvasPosition();
-}, { passive: false });
 
 async function investigateModule(moduleId) {
     const urlParams = new URLSearchParams(window.location.search);
@@ -352,7 +415,7 @@ async function investigateModule(moduleId) {
                 if (checkStatus) checkStatus.innerHTML = '<span class="checkmark">✔</span>';
             }
             alert("Модуль успішно досліджено!");
-            location.reload(); // Перезавантаження для оновлення масиву та ліній
+            location.reload(); 
         } else {
             alert("Помилка: " + result.error);
         }

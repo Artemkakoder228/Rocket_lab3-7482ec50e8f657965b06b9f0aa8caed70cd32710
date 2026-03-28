@@ -1,15 +1,19 @@
 const canvas = document.getElementById('canvas');
 const viewport = document.getElementById('viewport');
 
-// Змінні для позиції
+// Змінні для позиції та зуму
 let currentX = 0; 
 let currentY = 0; 
 let isDragging = false;
 let startX, startY;
-let scale = 1;              // Поточний масштаб
-const MIN_SCALE = 0.3;      // Мінімальне зменшення
-const MAX_SCALE = 3.0;      // Максимальне збільшення
-const ZOOM_SPEED = 0.001;
+let scale = 1;              
+const MIN_SCALE = 0.3;      
+const MAX_SCALE = 3.0;      
+
+// Для телефонів (Pinch-to-zoom)
+let initialPinchDistance = null;
+let initialScale = 1;
+
 const NODE_WIDTH = 150;
 const NODE_HEIGHT = 145;
 
@@ -107,9 +111,17 @@ window.treeNodes = [
     }
 ];
 
-// --- DRAG LOGIC ---
+// ===================================================================
+// --- РУХ ТА ЗУМ ДЛЯ ПК І ТЕЛЕФОНІВ (МИШКА + СЕНСОРНІ ЕКРАНИ) ---
+// ===================================================================
+
+function updateCanvasPosition() {
+    canvas.style.transform = `translate(${currentX}px, ${currentY}px) scale(${scale})`;
+}
+
+// --- 1. КЕРУВАННЯ МИШКОЮ (ПК) ---
 viewport.addEventListener('mousedown', (e) => {
-    if (e.target.closest('.node')) return;
+    if (e.target.closest('.node') || e.target.closest('.action-btn') || e.target.closest('.back-btn')) return;
     isDragging = true;
     startX = e.clientX - currentX;
     startY = e.clientY - currentY;
@@ -129,11 +141,79 @@ window.addEventListener('mouseup', () => {
     viewport.style.cursor = 'grab';
 });
 
-function updateCanvasPosition() {
-    canvas.style.transform = `translate(${currentX}px, ${currentY}px) scale(${scale})`;
-}
+viewport.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const xs = (e.clientX - currentX) / scale;
+    const ys = (e.clientY - currentY) / scale;
+    const factor = (e.deltaY > 0) ? 0.9 : 1.1; 
+    let newScale = scale * factor;
+    newScale = Math.max(MIN_SCALE, Math.min(newScale, MAX_SCALE));
+    currentX -= xs * (newScale - scale);
+    currentY -= ys * (newScale - scale);
+    scale = newScale;
+    updateCanvasPosition();
+}, { passive: false });
 
-// --- INIT ---
+// --- 2. КЕРУВАННЯ ПАЛЬЦЯМИ (ТЕЛЕФОН) ---
+viewport.addEventListener('touchstart', (e) => {
+    if (e.target.closest('.node') || e.target.closest('.action-btn') || e.target.closest('.back-btn')) return;
+    
+    if (e.touches.length === 1) {
+        // Один палець - перетягування гілки
+        isDragging = true;
+        startX = e.touches[0].clientX - currentX;
+        startY = e.touches[0].clientY - currentY;
+    } else if (e.touches.length === 2) {
+        // Два пальці - старт зуму
+        isDragging = false; 
+        initialPinchDistance = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+        );
+        initialScale = scale;
+    }
+}, { passive: false });
+
+window.addEventListener('touchmove', (e) => {
+    if (!isDragging && !initialPinchDistance) return;
+    
+    if (e.cancelable) e.preventDefault();
+
+    if (e.touches.length === 1 && isDragging) {
+        currentX = e.touches[0].clientX - startX;
+        currentY = e.touches[0].clientY - startY;
+        updateCanvasPosition();
+    } else if (e.touches.length === 2 && initialPinchDistance) {
+        const currentPinchDistance = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+        );
+        
+        const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+        const xs = (centerX - currentX) / scale;
+        const ys = (centerY - currentY) / scale;
+
+        let newScale = initialScale * (currentPinchDistance / initialPinchDistance);
+        newScale = Math.max(MIN_SCALE, Math.min(newScale, MAX_SCALE));
+
+        currentX -= xs * (newScale - scale);
+        currentY -= ys * (newScale - scale);
+        scale = newScale;
+        updateCanvasPosition();
+    }
+}, { passive: false });
+
+window.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) initialPinchDistance = null;
+    if (e.touches.length === 0) isDragging = false;
+});
+
+// ===================================================================
+// --- ІНІЦІАЛІЗАЦІЯ ДЕРЕВА ТА БД ---
+// ===================================================================
+
 async function init() {
     canvas.style.transformOrigin = '0 0';
     
@@ -317,22 +397,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
-
-// --- ЛОГІКА ЗУМУ ---
-viewport.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const xs = (e.clientX - currentX) / scale;
-    const ys = (e.clientY - currentY) / scale;
-    const delta = -e.deltaY;
-    const factor = (delta > 0) ? 1.1 : 0.9;
-    let newScale = scale * factor;
-    if (newScale < MIN_SCALE) newScale = MIN_SCALE;
-    if (newScale > MAX_SCALE) newScale = MAX_SCALE;
-    currentX -= xs * (newScale - scale);
-    currentY -= ys * (newScale - scale);
-    scale = newScale;
-    updateCanvasPosition();
-}, { passive: false });
 
 async function investigateModule(moduleId) {
     const urlParams = new URLSearchParams(window.location.search);

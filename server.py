@@ -64,20 +64,23 @@ CATALOG = {
     # --- ЮПІТЕР (Jupiter) ---
     'hull_start': {'name': 'Герметизація', 'type': 'body', 'tier': 'IV', 'cost': {'hydrogen': 0, 'helium': 0, 'coins': 0}, 'stats': {'armor': 450}},
     'hull_mk2': {'name': 'Композитний Корпус', 'type': 'body', 'tier': 'V', 'cost': {'hydrogen': 3000, 'helium': 2000, 'coins': 8000}, 'stats': {'armor': 1200}},
-    # ВИПРАВЛЕНО: 'type': 'solar'
+    
+    # Виправлено на 'solar'
     'solar_upg': {'name': 'Фотоелементи MK-2', 'type': 'solar', 'tier': 'VII', 'cost': {'hydrogen': 4000, 'helium': 2500, 'coins': 10000}, 'stats': {'armor': 1800}},
-    # ВИПРАВЛЕНО: 'type': 'solar'
     'solar_max': {'name': 'Квантові Панелі', 'type': 'solar', 'tier': 'VIII', 'cost': {'hydrogen': 6000, 'helium': 4000, 'coins': 15000}, 'stats': {'armor': 3000}},
     
-    # Залежно від вашого HTML, можливо ці теж треба змінити на 'cargo' або 'cabin'
+    # Виправлено на 'cargo'
     'aux_bay': {'name': 'Допоміжні Відсіки', 'type': 'cargo', 'tier': 'V', 'cost': {'hydrogen': 3500, 'helium': 2500, 'coins': 7500}, 'stats': {'armor': 1000}},
     'combat_bay': {'name': 'Бойовий Модуль', 'type': 'cargo', 'tier': 'VI', 'cost': {'hydrogen': 5500, 'helium': 4500, 'coins': 12000}, 'stats': {'armor': 1500}},
     
+    # Виправлено на 'weapons'
     'cannons': {'name': 'Плазмові Гармати', 'type': 'weapons', 'tier': 'I', 'cost': {'hydrogen': 8000, 'helium': 6000, 'coins': 20000}, 'stats': {'damage': 350}},
 
     'eng_start': {'name': 'Форсаж', 'type': 'engine', 'tier': 'IV', 'cost': {'hydrogen': 0, 'helium': 0, 'coins': 0}, 'stats': {'speed': 320}},
     'eng_ultimate': {'name': 'Гіпер-Турбіна', 'type': 'engine', 'tier': 'V', 'cost': {'hydrogen': 9000, 'helium': 7000, 'coins': 18000}, 'stats': {'speed': 800}},
-    'eng_side': {'name': 'Бокові Рушії', 'type': 'engine', 'tier': 'IV', 'cost': {'hydrogen': 2500, 'helium': 1500, 'coins': 7000}, 'stats': {'speed': 450}},
+    
+    # Виправлено на 'booster'
+    'eng_side': {'name': 'Бокові Рушії', 'type': 'booster', 'tier': 'IV', 'cost': {'hydrogen': 2500, 'helium': 1500, 'coins': 7000}, 'stats': {'speed': 450}},
 
     'nose_start': {'name': 'Титановий Конус', 'type': 'nose', 'tier': 'IV', 'cost': {'hydrogen': 0, 'helium': 0, 'coins': 0}, 'stats': {'aerodynamics': 90}},
     'nose_adv': {'name': 'Аеро-Композит', 'type': 'nose', 'tier': 'V', 'cost': {'hydrogen': 4500, 'helium': 3000, 'coins': 9000}, 'stats': {'aerodynamics': 200}},
