@@ -31,6 +31,7 @@ class Database:
                     engine_lvl INTEGER DEFAULT 1,
                     hull_lvl INTEGER DEFAULT 1,
                     current_planet TEXT DEFAULT 'Earth',
+                    unlocked_planets TEXT DEFAULT 'Earth',
 
                     -- Шахта та таймери
                     mine_lvl INTEGER DEFAULT 0,
@@ -450,15 +451,23 @@ class Database:
     def buy_module_upgrade(self, family_id, module_data):
         m_id = module_data['id']
         costs = module_data.get('cost', {})
+        requires_id = module_data.get('requires') # <--- Читаємо залежність
 
         with self.connection:
             # 1. Перевірка чи вже куплено
             self.cursor.execute("SELECT id FROM family_upgrades WHERE family_id = %s AND module_id = %s", (family_id, m_id))
             if self.cursor.fetchone(): return False, "Вже досліджено"
 
-            # 2. Отримуємо всі ресурси сім'ї
+            # 2. ПЕРЕВІРКА: ЧИ КУПЛЕНО ПОПЕРЕДНІЙ МОДУЛЬ? (НОВЕ)
+            if requires_id:
+                self.cursor.execute("SELECT id FROM family_upgrades WHERE family_id = %s AND module_id = %s", (family_id, requires_id))
+                if not self.cursor.fetchone():
+                    return False, "❌ Спочатку дослідіть попередній модуль у гілці!"
+
+            # 3. Отримуємо всі ресурси сім'ї
             self.cursor.execute("SELECT balance, res_iron, res_fuel, res_regolith, res_he3, res_silicon, res_oxide, res_hydrogen, res_helium FROM families WHERE id = %s", (family_id,))
             res_row = self.cursor.fetchone()
+            
             # Мапа для зручного доступу
             user_res = {
                 'coins': res_row[0], 'iron': res_row[1], 'fuel': res_row[2],
@@ -466,20 +475,19 @@ class Database:
                 'oxide': res_row[6], 'hydrogen': res_row[7], 'helium': res_row[8]
             }
 
-            # 3. Перевірка чи вистачає ресурсів
+            # 4. Перевірка чи вистачає ресурсів
             for res_name, amount in costs.items():
                 if user_res.get(res_name, 0) < amount:
                     return False, f"Недостатньо {res_name}"
 
-            # 4. Знімаємо ресурси
+            # 5. Знімаємо ресурси
             for res_name, amount in costs.items():
                 db_col = f"res_{res_name}" if res_name != 'coins' else "balance"
                 self.cursor.execute(f"UPDATE families SET {db_col} = {db_col} - %s WHERE id = %s", (amount, family_id))
 
-            # 5. Додаємо в список куплених
+            # 6. Додаємо в список куплених
             self.cursor.execute("INSERT INTO family_upgrades (family_id, module_id) VALUES (%s, %s)", (family_id, m_id))
             
-            # Логіка підвищення рівнів (двигун/корпус) залишається...
             return True, "Успішно досліджено!"
         
     def get_full_inventory(self, family_id):

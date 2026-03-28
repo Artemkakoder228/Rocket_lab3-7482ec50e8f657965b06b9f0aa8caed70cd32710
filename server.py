@@ -13,77 +13,97 @@ CORS(app)
 db = Database() 
 
 CATALOG = {
+    # ==========================================
     # --- ЗЕМЛЯ (Earth) ---
+    # ==========================================
+    
+    # Гілка: Ніс
     'gu1': {'name': 'Конус-верхівка', 'type': 'nose', 'tier': 'I', 'cost': {'iron': 0, 'fuel': 0, 'coins': 0}, 'stats': {'aerodynamics': 10}},
-    'gu2': {'name': 'Сенсорний шпиль', 'type': 'nose', 'tier': 'II', 'cost': {'iron': 400, 'fuel': 150, 'coins': 250}, 'stats': {'aerodynamics': 25}},
+    'gu2': {'name': 'Сенсорний шпиль', 'type': 'nose', 'tier': 'II', 'cost': {'iron': 400, 'fuel': 150, 'coins': 250}, 'stats': {'aerodynamics': 25}, 'requires': 'gu1'},
     
+    # Гілка: Корпус
     'nc1': {'name': 'Корпус', 'type': 'body', 'tier': 'I', 'cost': {'iron': 0, 'fuel': 0, 'coins': 0}, 'stats': {'armor': 50}},
-    'h1': {'name': 'Сталевий Корпус', 'type': 'body', 'tier': 'II', 'cost': {'iron': 600, 'fuel': 200, 'coins': 400}, 'stats': {'armor': 120}},
+    'h1': {'name': 'Сталевий Корпус', 'type': 'body', 'tier': 'II', 'cost': {'iron': 600, 'fuel': 200, 'coins': 400}, 'stats': {'armor': 120}, 'requires': 'nc1'},
     
+    # Гілка: Двигун
     'e1': {'name': 'Турбіна', 'type': 'engine', 'tier': 'I', 'cost': {'iron': 0, 'fuel': 0, 'coins': 0}, 'stats': {'speed': 30}},
-    'e2': {'name': 'Турбо-нагнітач', 'type': 'engine', 'tier': 'II', 'cost': {'iron': 500, 'fuel': 300, 'coins': 500}, 'stats': {'speed': 75}},
+    'e2': {'name': 'Турбо-нагнітач', 'type': 'engine', 'tier': 'II', 'cost': {'iron': 500, 'fuel': 300, 'coins': 500}, 'stats': {'speed': 75}, 'requires': 'e1'},
     
+    # Гілка: Стабілізатори
     'a1': {'name': 'Надкрилки', 'type': 'fins', 'tier': 'I', 'cost': {'iron': 0, 'fuel': 0, 'coins': 0}, 'stats': {'handling': 15}},
-    'a2': {'name': 'Активні закрилки', 'type': 'fins', 'tier': 'II', 'cost': {'iron': 300, 'fuel': 150, 'coins': 350}, 'stats': {'handling': 40}},
+    'a2': {'name': 'Активні закрилки', 'type': 'fins', 'tier': 'II', 'cost': {'iron': 300, 'fuel': 150, 'coins': 350}, 'stats': {'handling': 40}, 'requires': 'a1'},
 
+    # ==========================================
     # --- МІСЯЦЬ (Moon) ---
+    # ==========================================
+    
+    # Гілка 1: Корпус та додаткові модулі
     'root1': {'name': 'Сталевий Корпус', 'type': 'body', 'tier': 'II', 'cost': {'regolith': 0, 'he3': 0, 'coins': 0}, 'stats': {'armor': 120}},
-    'branch1_up1': {'name': 'Вантажний Відсік', 'type': 'cargo', 'tier': 'III', 'cost': {'regolith': 500, 'he3': 200, 'coins': 800}, 'stats': {'armor': 200}},
-    'branch1_up2': {'name': 'Сонячні Панелі', 'type': 'solar', 'tier': 'IV', 'cost': {'regolith': 700, 'he3': 400, 'coins': 1200}, 'stats': {'armor': 250}},
-    'branch1_down1': {'name': 'Аеро-надкрилки', 'type': 'fins', 'tier': 'III', 'cost': {'regolith': 400, 'he3': 150, 'coins': 900}, 'stats': {'handling': 65}},
+    'branch1_up1': {'name': 'Вантажний Відсік', 'type': 'cargo', 'tier': 'III', 'cost': {'regolith': 500, 'he3': 200, 'coins': 800}, 'stats': {'armor': 200}, 'requires': 'root1'},
+    'branch1_up2': {'name': 'Сонячні Панелі', 'type': 'solar', 'tier': 'IV', 'cost': {'regolith': 700, 'he3': 400, 'coins': 1200}, 'stats': {'armor': 250}, 'requires': 'branch1_up1'},
+    'branch1_down1': {'name': 'Аеро-надкрилки', 'type': 'fins', 'tier': 'III', 'cost': {'regolith': 400, 'he3': 150, 'coins': 900}, 'stats': {'handling': 65}, 'requires': 'root1'},
 
+    # Гілка 2: Двигуни
     'root2': {'name': 'Турбо-нагнітач', 'type': 'engine', 'tier': 'II', 'cost': {'regolith': 0, 'he3': 0, 'coins': 0}, 'stats': {'speed': 75}},
-    'branch2_up': {'name': 'Турбо-Форсаж', 'type': 'engine', 'tier': 'III', 'cost': {'regolith': 800, 'he3': 600, 'coins': 1500}, 'stats': {'speed': 150}},
-    # ВИПРАВЛЕНО: Змінено type на 'booster' для бокових турбін
-    'branch2_down': {'name': 'Бокові Рушії', 'type': 'booster', 'tier': 'II', 'cost': {'regolith': 600, 'he3': 400, 'coins': 1000}, 'stats': {'speed': 100}},
+    'branch2_up': {'name': 'Турбо-Форсаж', 'type': 'engine', 'tier': 'III', 'cost': {'regolith': 800, 'he3': 600, 'coins': 1500}, 'stats': {'speed': 150}, 'requires': 'root2'},
+    'branch2_down': {'name': 'Бокові Рушії', 'type': 'booster', 'tier': 'II', 'cost': {'regolith': 600, 'he3': 400, 'coins': 1000}, 'stats': {'speed': 100}, 'requires': 'root2'},
 
-    # ВИПРАВЛЕНО: Змінено type на 'cabin' для відсіку з вікном
+    # Гілка 3: Кабіна та Ніс
     'root3': {'name': 'Кабіна Екіпажу', 'type': 'cabin', 'tier': 'II', 'cost': {'regolith': 0, 'he3': 0, 'coins': 0}, 'stats': {'aerodynamics': 25}},
-    'branch3': {'name': 'Керамічний Щит', 'type': 'nose', 'tier': 'III', 'cost': {'regolith': 500, 'he3': 300, 'coins': 1100}, 'stats': {'aerodynamics': 55}},
+    'branch3': {'name': 'Керамічний Щит', 'type': 'nose', 'tier': 'III', 'cost': {'regolith': 500, 'he3': 300, 'coins': 1100}, 'stats': {'aerodynamics': 55}, 'requires': 'root3'},
 
-   # --- МАРС (Mars) ---
+    # ==========================================
+    # --- МАРС (Mars) ---
+    # ==========================================
+    
+    # Гілка 1: Корпус, Панелі та Відсіки
     'g1_1': {'name': 'Вантажний Відсік', 'type': 'cargo', 'tier': 'III', 'cost': {'silicon': 0, 'oxide': 0, 'coins': 0}, 'stats': {'armor': 200}},
-    'g1_2': {'name': 'Герметизація', 'type': 'body', 'tier': 'IV', 'cost': {'silicon': 900, 'oxide': 500, 'coins': 2500}, 'stats': {'armor': 450}},
-    # ВИПРАВЛЕНО НА 'cabin' (щоб працювало як відсік кабіни/оновлення)
-    'g1_up': {'name': 'Панель Оновлення', 'type': 'cabin', 'tier': 'III', 'cost': {'silicon': 1200, 'oxide': 800, 'coins': 3500}, 'stats': {'armor': 350}},
-    'g1_up2': {'name': 'Лабораторний Модуль', 'type': 'cargo', 'tier': 'IV', 'cost': {'silicon': 2000, 'oxide': 1200, 'coins': 5000}, 'stats': {'armor': 600}},
-    'g1_down': {'name': 'Сонячні Панелі', 'type': 'solar', 'tier': 'V', 'cost': {'silicon': 1000, 'oxide': 600, 'coins': 3000}, 'stats': {'armor': 600}},
-    'g1_end': {'name': 'Нові Панелі MK-II', 'type': 'solar', 'tier': 'VI', 'cost': {'silicon': 1500, 'oxide': 1000, 'coins': 5000}, 'stats': {'armor': 900}},
+    'g1_2': {'name': 'Герметизація', 'type': 'body', 'tier': 'IV', 'cost': {'silicon': 900, 'oxide': 500, 'coins': 2500}, 'stats': {'armor': 450}, 'requires': 'g1_1'},
+    
+    'g1_up': {'name': 'Панель Оновлення', 'type': 'cabin', 'tier': 'III', 'cost': {'silicon': 1200, 'oxide': 800, 'coins': 3500}, 'stats': {'armor': 350}, 'requires': 'g1_1'},
+    'g1_up2': {'name': 'Лабораторний Модуль', 'type': 'cargo', 'tier': 'IV', 'cost': {'silicon': 2000, 'oxide': 1200, 'coins': 5000}, 'stats': {'armor': 600}, 'requires': 'g1_up'},
+    
+    'g1_down': {'name': 'Сонячні Панелі', 'type': 'solar', 'tier': 'V', 'cost': {'silicon': 1000, 'oxide': 600, 'coins': 3000}, 'stats': {'armor': 600}, 'requires': 'g1_1'},
+    'g1_end': {'name': 'Нові Панелі MK-II', 'type': 'solar', 'tier': 'VI', 'cost': {'silicon': 1500, 'oxide': 1000, 'coins': 5000}, 'stats': {'armor': 900}, 'requires': 'g1_down'},
 
+    # Гілка 2: Двигуни та Стабілізація
     'g2_1': {'name': 'Турбо-Форсаж', 'type': 'engine', 'tier': 'III', 'cost': {'silicon': 0, 'oxide': 0, 'coins': 0}, 'stats': {'speed': 150}},
-    'g2_up': {'name': 'Покращений Форсаж', 'type': 'engine', 'tier': 'IV', 'cost': {'silicon': 1800, 'oxide': 1200, 'coins': 4500}, 'stats': {'speed': 320}},
-    # ВИПРАВЛЕНО НА 'booster' (щоб працювало як бокові рушії)
-    'g2_down': {'name': 'Бокові Турбіни', 'type': 'booster', 'tier': 'III', 'cost': {'silicon': 1200, 'oxide': 800, 'coins': 3200}, 'stats': {'speed': 210}},
-    'g2_down2': {'name': 'Аеро-Стабілізатори', 'type': 'fins', 'tier': 'IV', 'cost': {'silicon': 1600, 'oxide': 900, 'coins': 3800}, 'stats': {'handling': 85}},
+    'g2_up': {'name': 'Покращений Форсаж', 'type': 'engine', 'tier': 'IV', 'cost': {'silicon': 1800, 'oxide': 1200, 'coins': 4500}, 'stats': {'speed': 320}, 'requires': 'g2_1'},
+    
+    'g2_down': {'name': 'Бокові Турбіни', 'type': 'booster', 'tier': 'III', 'cost': {'silicon': 1200, 'oxide': 800, 'coins': 3200}, 'stats': {'speed': 210}, 'requires': 'g2_1'},
+    'g2_down2': {'name': 'Аеро-Стабілізатори', 'type': 'fins', 'tier': 'IV', 'cost': {'silicon': 1600, 'oxide': 900, 'coins': 3800}, 'stats': {'handling': 85}, 'requires': 'g2_down'},
 
+    # Гілка 3: Ніс та Зброя
     'g3_a1': {'name': 'Керамічний Щит', 'type': 'nose', 'tier': 'III', 'cost': {'silicon': 0, 'oxide': 0, 'coins': 0}, 'stats': {'aerodynamics': 55}},
-    'g3_a2': {'name': 'Нова Верхівка', 'type': 'nose', 'tier': 'IV', 'cost': {'silicon': 1100, 'oxide': 600, 'coins': 2800}, 'stats': {'aerodynamics': 90}},
+    'g3_a2': {'name': 'Нова Верхівка', 'type': 'nose', 'tier': 'IV', 'cost': {'silicon': 1100, 'oxide': 600, 'coins': 2800}, 'stats': {'aerodynamics': 90}, 'requires': 'g3_a1'},
+    
     'g3_b1': {'name': 'Бластер', 'type': 'weapons', 'tier': 'I', 'cost': {'silicon': 0, 'oxide': 0, 'coins': 0}, 'stats': {'damage': 40}},
-    'g3_b2': {'name': 'Покращений Бластер', 'type': 'weapons', 'tier': 'II', 'cost': {'silicon': 2000, 'oxide': 1500, 'coins': 5000}, 'stats': {'damage': 110}},
+    'g3_b2': {'name': 'Покращений Бластер', 'type': 'weapons', 'tier': 'II', 'cost': {'silicon': 2000, 'oxide': 1500, 'coins': 5000}, 'stats': {'damage': 110}, 'requires': 'g3_b1'},
 
+    # ==========================================
     # --- ЮПІТЕР (Jupiter) ---
+    # ==========================================
+    
+    # Гілка: Корпус, Панелі та Зброя
     'hull_start': {'name': 'Герметизація', 'type': 'body', 'tier': 'IV', 'cost': {'hydrogen': 0, 'helium': 0, 'coins': 0}, 'stats': {'armor': 450}},
-    'hull_mk2': {'name': 'Композитний Корпус', 'type': 'body', 'tier': 'V', 'cost': {'hydrogen': 3000, 'helium': 2000, 'coins': 8000}, 'stats': {'armor': 1200}},
+    'hull_mk2': {'name': 'Композитний Корпус', 'type': 'body', 'tier': 'V', 'cost': {'hydrogen': 3000, 'helium': 2000, 'coins': 8000}, 'stats': {'armor': 1200}, 'requires': 'hull_start'},
     
-    # Виправлено на 'solar'
-    'solar_upg': {'name': 'Фотоелементи MK-2', 'type': 'solar', 'tier': 'VII', 'cost': {'hydrogen': 4000, 'helium': 2500, 'coins': 10000}, 'stats': {'armor': 1800}},
-    'solar_max': {'name': 'Квантові Панелі', 'type': 'solar', 'tier': 'VIII', 'cost': {'hydrogen': 6000, 'helium': 4000, 'coins': 15000}, 'stats': {'armor': 3000}},
+    'solar_upg': {'name': 'Фотоелементи MK-2', 'type': 'solar', 'tier': 'VII', 'cost': {'hydrogen': 4000, 'helium': 2500, 'coins': 10000}, 'stats': {'armor': 1800}, 'requires': 'hull_start'},
+    'solar_max': {'name': 'Квантові Панелі', 'type': 'solar', 'tier': 'VIII', 'cost': {'hydrogen': 6000, 'helium': 4000, 'coins': 15000}, 'stats': {'armor': 3000}, 'requires': 'solar_upg'},
     
-    # Виправлено на 'cargo'
-    'aux_bay': {'name': 'Допоміжні Відсіки', 'type': 'cargo', 'tier': 'V', 'cost': {'hydrogen': 3500, 'helium': 2500, 'coins': 7500}, 'stats': {'armor': 1000}},
-    'combat_bay': {'name': 'Бойовий Модуль', 'type': 'cargo', 'tier': 'VI', 'cost': {'hydrogen': 5500, 'helium': 4500, 'coins': 12000}, 'stats': {'armor': 1500}},
+    'aux_bay': {'name': 'Допоміжні Відсіки', 'type': 'cargo', 'tier': 'V', 'cost': {'hydrogen': 3500, 'helium': 2500, 'coins': 7500}, 'stats': {'armor': 1000}, 'requires': 'hull_start'},
+    'combat_bay': {'name': 'Бойовий Модуль', 'type': 'cargo', 'tier': 'VI', 'cost': {'hydrogen': 5500, 'helium': 4500, 'coins': 12000}, 'stats': {'armor': 1500}, 'requires': 'aux_bay'},
     
-    # Виправлено на 'weapons'
-    'cannons': {'name': 'Плазмові Гармати', 'type': 'weapons', 'tier': 'I', 'cost': {'hydrogen': 8000, 'helium': 6000, 'coins': 20000}, 'stats': {'damage': 350}},
+    'cannons': {'name': 'Плазмові Гармати', 'type': 'weapons', 'tier': 'I', 'cost': {'hydrogen': 8000, 'helium': 6000, 'coins': 20000}, 'stats': {'damage': 350}, 'requires': 'combat_bay'},
 
+    # Гілка: Двигуни
     'eng_start': {'name': 'Форсаж', 'type': 'engine', 'tier': 'IV', 'cost': {'hydrogen': 0, 'helium': 0, 'coins': 0}, 'stats': {'speed': 320}},
-    'eng_ultimate': {'name': 'Гіпер-Турбіна', 'type': 'engine', 'tier': 'V', 'cost': {'hydrogen': 9000, 'helium': 7000, 'coins': 18000}, 'stats': {'speed': 800}},
-    
-    # Виправлено на 'booster'
-    'eng_side': {'name': 'Бокові Рушії', 'type': 'booster', 'tier': 'IV', 'cost': {'hydrogen': 2500, 'helium': 1500, 'coins': 7000}, 'stats': {'speed': 450}},
+    'eng_ultimate': {'name': 'Гіпер-Турбіна', 'type': 'engine', 'tier': 'V', 'cost': {'hydrogen': 9000, 'helium': 7000, 'coins': 18000}, 'stats': {'speed': 800}, 'requires': 'eng_start'},
+    'eng_side': {'name': 'Бокові Рушії', 'type': 'booster', 'tier': 'IV', 'cost': {'hydrogen': 2500, 'helium': 1500, 'coins': 7000}, 'stats': {'speed': 450}, 'requires': 'eng_start'},
 
+    # Гілка: Ніс
     'nose_start': {'name': 'Титановий Конус', 'type': 'nose', 'tier': 'IV', 'cost': {'hydrogen': 0, 'helium': 0, 'coins': 0}, 'stats': {'aerodynamics': 90}},
-    'nose_adv': {'name': 'Аеро-Композит', 'type': 'nose', 'tier': 'V', 'cost': {'hydrogen': 4500, 'helium': 3000, 'coins': 9000}, 'stats': {'aerodynamics': 200}},
+    'nose_adv': {'name': 'Аеро-Композит', 'type': 'nose', 'tier': 'V', 'cost': {'hydrogen': 4500, 'helium': 3000, 'coins': 9000}, 'stats': {'aerodynamics': 200}, 'requires': 'nose_start'},
 }
 # --- НОВІ МАРШРУТИ ДЛЯ САЙТУ ---
 
