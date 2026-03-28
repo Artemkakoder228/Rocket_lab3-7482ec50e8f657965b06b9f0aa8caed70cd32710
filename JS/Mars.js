@@ -1,7 +1,7 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// Відображення імені користувача
+// Відображення імені
 if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
     const userElement = document.querySelector('.logo span'); 
     if(userElement) {
@@ -12,7 +12,7 @@ if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
 let selectedModuleKey = null;
 let userOwnedModules = []; 
 
-// === ТОЧНІ ID МОДУЛІВ З БАЗИ ДАНИХ ===
+// === ТОЧНІ ID МОДУЛІВ ===
 const PLANET_MODULE_POOLS = {
     'EARTH': ['gu1', 'gu2', 'nc1', 'h1', 'e1', 'e2', 'a1', 'a2'],
     'MOON':  ['root1', 'branch1_up1', 'branch1_up2', 'branch1_down1', 'root2', 'branch2_up', 'branch2_down', 'root3', 'branch3'],
@@ -25,8 +25,9 @@ document.addEventListener("DOMContentLoaded", () => {
     initInteractions(); 
     initNavigation();
 
-    updateEarthResources();
-    setInterval(updateEarthResources, 5000);
+    // Запускаємо оновлення ресурсів
+    updateMarsResources();
+    setInterval(updateMarsResources, 5000);
 });
 
 function romanToNum(roman) {
@@ -37,7 +38,7 @@ function romanToNum(roman) {
 function getCurrentPlanetName() {
     const activePlanet = document.querySelector('.planet-item.active .planet-name');
     if (activePlanet) return activePlanet.innerText.trim().toUpperCase();
-    return 'EARTH';
+    return 'MARS'; // За замовчуванням
 }
 
 function filterModulesByPlanet(modules) {
@@ -46,7 +47,7 @@ function filterModulesByPlanet(modules) {
     return modules.filter(mod => allowedIds.includes(mod.id));
 }
 
-// --- ІНФО ПАНЕЛЬ ---
+// --- ІНФО ПАНЕЛЬ (З ШЕСТЕРНЕЮ) ---
 function resetInfoPanel() {
     selectedModuleKey = null;
     const pTitle = document.getElementById('panelTitle');
@@ -166,7 +167,7 @@ function refreshInfoPanel(key) {
     }
 }
 
-// --- ВЗАЄМОДІЯ ТА КЛІКИ ---
+// --- ВЗАЄМОДІЯ ---
 function initInteractions() {
     const modules = document.querySelectorAll('.module');
     const panel = document.getElementById('infoPanel');
@@ -199,6 +200,9 @@ function initInteractions() {
 // --- НАВІГАЦІЯ ---
 function initNavigation() {
     const planets = document.querySelectorAll('.planet-item');
+    // Отримуємо поточні параметри, щоб не втратити family_id при кліку
+    const searchParams = window.location.search; 
+
     planets.forEach(planet => {
         planet.addEventListener('click', () => {
             const nameElement = planet.querySelector('.planet-name');
@@ -215,8 +219,8 @@ function initNavigation() {
             }
 
             if (targetPage) {
-                if(typeof window.navigateTo === 'function') window.navigateTo(targetPage);
-                else window.location.href = targetPage + window.location.search;
+                // Використовуємо window.location, щоб гарантовано передати ID
+                window.location.href = targetPage + searchParams;
             }
         });
     });
@@ -230,31 +234,30 @@ function initNavigation() {
             else if(currentPlanet === 'MARS') treeFile = 'tree_Mars.html';
             else if(currentPlanet === 'JUPITER') treeFile = 'tree_Jupiter.html';
 
-            if(typeof window.navigateTo === 'function') window.navigateTo(treeFile);
-            else window.location.href = treeFile + window.location.search;
+            window.location.href = treeFile + searchParams;
         });
     }
 
     const inventoryBtn = document.querySelector('.status-badge.inventory-sq');
     if (inventoryBtn) {
         inventoryBtn.addEventListener('click', () => {
-            if(typeof window.navigateTo === 'function') window.navigateTo('inventory.html');
-            else window.location.href = 'inventory.html' + window.location.search;
+            window.location.href = 'inventory.html' + searchParams;
         });
     }
 }
 
-// --- ФОНОВІ ЗІРКИ ---
+// --- ЗІРКИ (Твоя версія) ---
 function initHyperSpace() {
     const container = document.getElementById('space-container');
     if (!container) return;
     container.innerHTML = '';
-    const starCount = 150;
 
+    const starCount = 300;
     for (let i = 0; i < starCount; i++) {
         const star = document.createElement('div');
         star.classList.add('star');
-        star.style.left = `${Math.random() * 100}%`;
+        const x = Math.random() * 100;
+        star.style.left = `${x}%`;
 
         const depth = Math.random();
         let size, duration;
@@ -266,10 +269,12 @@ function initHyperSpace() {
         } else if (depth > 0.6) {
             size = Math.random() * 2 + 1;
             duration = Math.random() * 2 + 2;
+            if(Math.random() > 0.8) star.classList.add('blue');
         } else {
             size = Math.random() * 1.5 + 0.5;
             duration = Math.random() * 5 + 5;
             star.style.opacity = Math.random() * 0.5 + 0.1;
+            if(Math.random() > 0.9) star.classList.add('nebula');
         }
 
         star.style.width = `${size}px`;
@@ -280,12 +285,16 @@ function initHyperSpace() {
     }
 }
 
-// --- ЗАВАНТАЖЕННЯ ДАНИХ (БЕЗ ВПЛИВУ НА РАКЕТУ) ---
-async function updateEarthResources() {
+// --- ЗАВАНТАЖЕННЯ ДАНИХ ДЛЯ МАРСУ ---
+async function updateMarsResources() {
     const urlParams = new URLSearchParams(window.location.search);
     const familyId = urlParams.get('family_id');
 
-    if (!familyId) return;
+    // Якщо ID немає, скрипт зупиняється!
+    if (!familyId) {
+        console.error("Помилка: відсутній family_id у посиланні!");
+        return; 
+    }
 
     try {
         const response = await fetch(`/api/inventory?family_id=${familyId}`);
@@ -294,13 +303,18 @@ async function updateEarthResources() {
         const data = await response.json();
 
         if (data.resources) {
-            if (document.getElementById('val-coins')) document.getElementById('val-coins').innerText = data.resources.coins;
-            if (document.getElementById('val-iron')) document.getElementById('val-iron').innerText = data.resources.iron;
-            if (document.getElementById('val-fuel')) document.getElementById('val-fuel').innerText = data.resources.fuel;
+            // Оновлюємо ресурси Марсу
+            const coinsEl = document.getElementById('val-coins');
+            if (coinsEl) coinsEl.innerText = data.resources.coins;
+            
+            const siliconEl = document.getElementById('val-silicon');
+            if (siliconEl) siliconEl.innerText = data.resources.silicon;
+            
+            const oxideEl = document.getElementById('val-oxide');
+            if (oxideEl) oxideEl.innerText = data.resources.oxide;
         }
         
         if (data.modules) {
-            // ТІЛЬКИ зберігаємо в пам'ять для інфо-панелі. Ракету не чіпаємо!
             userOwnedModules = data.modules; 
             
             if (selectedModuleKey) {
