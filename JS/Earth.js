@@ -116,17 +116,20 @@ function initInteractions() {
 
 // ІНФО ПАНЕЛЬ
 function refreshInfoPanel(key) {
-    // Вмикаємо статистику та прибираємо стиль очікування
     const stats = document.getElementById('statsContainer');
     if (stats) stats.style.display = 'block';
     
     const pTitle = document.getElementById('panelTitle');
     const pDesc = document.getElementById('panelDesc');
-    pDesc.style.textAlign = 'left';
+    if(pDesc) pDesc.style.textAlign = 'left';
 
     const btn = document.querySelector('.upgrade-btn');
     const statLevel = document.getElementById('statLevel');
     const barLevel = document.getElementById('barLevel');
+    
+    // Отримуємо елементи для "Ефективності"
+    const statIntegrity = document.getElementById('statIntegrity');
+    const barIntegrity = document.getElementById('barIntegrity');
 
     const planetSpecificOwnedModules = filterModulesByPlanet(userOwnedModules);
 
@@ -144,6 +147,7 @@ function refreshInfoPanel(key) {
     });
 
     if (bestModule) {
+        // --- МОДУЛЬ ДОСЛІДЖЕНО ---
         pTitle.innerText = bestModule.name.toUpperCase();
         
         let statsText = "СТАТУС: Встановлено\n\nХАРАКТЕРИСТИКИ:\n";
@@ -154,13 +158,20 @@ function refreshInfoPanel(key) {
         }
         pDesc.innerText = statsText;
 
-        statLevel.innerText = `TIER ${bestModule.tier}`;
-        barLevel.style.width = `${(bestLevel / 8) * 100}%`; 
+        if(statLevel) statLevel.innerText = `TIER ${bestModule.tier}`;
+        if(barLevel) barLevel.style.width = `${(bestLevel / 8) * 100}%`; 
         
+        // Оновлюємо ефективність
+        let efficiency = Math.min(100, 55 + (bestLevel * 6)); 
+        if(statIntegrity) statIntegrity.innerText = `${efficiency}%`;
+        if(barIntegrity) {
+            barIntegrity.style.width = `${efficiency}%`;
+            barIntegrity.style.background = '#00ffcc'; // Неоново-зелений (Оптимально)
+        }
+
         if (btn) btn.style.display = 'none'; 
     } else {
-        pTitle.innerText = "МОДУЛЬ ВІДСУТНІЙ";
-        
+        const defaultModules = ['nose', 'body', 'engine', 'fins']; 
         const currentPlanet = getCurrentPlanetName();
         let treeFile = 'tree_Earth.html';
         let planetNiceName = 'ЗЕМЛЯ';
@@ -169,20 +180,45 @@ function refreshInfoPanel(key) {
         else if(currentPlanet === 'MARS') { treeFile = 'tree_Mars.html'; planetNiceName = 'МАРС'; }
         else if(currentPlanet === 'JUPITER') { treeFile = 'tree_Jupiter.html'; planetNiceName = 'ЮПІТЕР'; }
 
-        pDesc.innerText = `Цей слот порожній для планети ${planetNiceName}.\n\nПерейдіть до Дерева розробок ${planetNiceName}, щоб дослідити та встановити необхідні технології.`;
-        statLevel.innerText = "TIER 0";
-        barLevel.style.width = "0%";
-        
-        if (btn) {
-            btn.style.display = 'block';
-            btn.innerText = `🚀 ДЕРЕВО РОЗРОБОК`;
-            btn.style.background = "linear-gradient(90deg, #00ffcc, #00b38f)";
-            btn.style.color = "#000";
+        if (defaultModules.includes(key)) {
+            // --- БАЗОВА ДЕТАЛЬ ---
+            pTitle.innerText = "БАЗОВА ДЕТАЛЬ";
+            pDesc.innerText = "Це стандартна заводська деталь (Рівень 1).\n\nВона не має додаткових бонусів та характеристик.";
             
-            btn.onclick = () => { 
-                if(typeof window.navigateTo === 'function') window.navigateTo(treeFile);
-                else window.location.href = treeFile + window.location.search;
-            };
+            if(statLevel) statLevel.innerText = "TIER I";
+            if(barLevel) barLevel.style.width = "12.5%";
+            
+            // Ефективність базової деталі - 50%
+            if(statIntegrity) statIntegrity.innerText = "50%";
+            if(barIntegrity) {
+                barIntegrity.style.width = "50%";
+                barIntegrity.style.background = '#ffaa00'; // Помаранчевий (потребує заміни)
+            }
+            
+            if (btn) btn.style.display = 'none';
+        } else {
+            // --- СЛОТ ПУСТИЙ ---
+            pTitle.innerText = "МОДУЛЬ ВІДСУТНІЙ";
+            pDesc.innerText = `Цей слот порожній для планети ${planetNiceName}.\n\nПерейдіть до Дерева розробок, щоб дослідити та встановити необхідні технології.`;
+            
+            if(statLevel) statLevel.innerText = "TIER 0";
+            if(barLevel) barLevel.style.width = "0%";
+            
+            // Ефективність відсутньої деталі - 0%
+            if(statIntegrity) statIntegrity.innerText = "0%";
+            if(barIntegrity) barIntegrity.style.width = "0%";
+            
+            if (btn) {
+                btn.style.display = 'block';
+                btn.innerText = `🚀 ДЕРЕВО РОЗРОБОК`;
+                btn.style.background = "linear-gradient(90deg, #00ffcc, #00b38f)";
+                btn.style.color = "#000";
+
+                btn.onclick = () => {
+                    if(typeof window.navigateTo === 'function') window.navigateTo(treeFile);
+                    else window.location.href = treeFile + window.location.search;
+                };
+            }
         }
     }
 }

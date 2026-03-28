@@ -125,13 +125,16 @@
             </div>
         </div>
 
-        <div class="info-panel" id="infoPanel">
-            <h2 class="panel-header" id="panelTitle">System Scan</h2>
-            <p class="panel-desc" id="panelDesc">Hover modules to initialize scan.</p>
+       <div class="info-panel" id="infoPanel">
+            <h2 class="panel-header" id="panelTitle">ОЧІКУВАННЯ СИСТЕМИ</h2>
+            <p class="panel-desc" id="panelDesc" style="text-align: center;">
+                Натисніть на деталь ракети для сканування<br><br>
+                <span class="gear-icon">⚙️</span>
+            </p>
             
-            <div class="stats-container">
+            <div class="stats-container" id="statsContainer" style="display: none;">
                 <div class="stat-row">
-                    <div class="stat-label"><span>Integrity</span><span id="statIntegrity">0%</span></div>
+                    <div class="stat-label"><span>Ефективність</span><span id="statIntegrity">0%</span></div>
                     <div class="progress-bg"><div class="progress-fill" id="barIntegrity" style="width: 0%"></div></div>
                 </div>
                 <div class="stat-row">
@@ -140,7 +143,7 @@
                 </div>
             </div>
 
-            <button class="upgrade-btn">Initiate Upgrade</button>
+            <button class="upgrade-btn" style="display: none;">Initiate Upgrade</button>
         </div>
 
     </main>
