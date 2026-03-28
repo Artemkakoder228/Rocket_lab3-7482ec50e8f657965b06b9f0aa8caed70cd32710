@@ -87,31 +87,49 @@ function updateRocketVisualsFromServer(modules) {
 function initInteractions() {
     const modules = document.querySelectorAll('.module');
     const panel = document.getElementById('infoPanel');
+    const upgradeBtn = document.querySelector('.upgrade-btn');
+
+    if(upgradeBtn) {
+        upgradeBtn.addEventListener('click', upgradeSelectedModule);
+    }
 
     modules.forEach(mod => {
-        mod.addEventListener('click', (e) => {
-            e.stopPropagation(); 
+        mod.addEventListener('mouseenter', () => {
             const key = mod.getAttribute('data-module');
             selectedModuleKey = key;
             refreshInfoPanel(key);
-            
-            if(tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+            panel.classList.add('active');
+        });
+        
+        mod.addEventListener('click', (e) => {
+            e.stopPropagation(); // Зупиняємо клік, щоб він не пройшов далі до document
+            selectedModuleKey = mod.getAttribute('data-module');
+            refreshInfoPanel(selectedModuleKey);
             panel.classList.add('active');
         });
     });
 
+    // Якщо натиснути в пусте місце екрану — скидаємо панель до шестерні
     document.addEventListener('click', (e) => {
-        if (panel && panel.classList.contains('active') && !panel.contains(e.target)) {
-            panel.classList.remove('active');
-            selectedModuleKey = null;
+        if (panel && !panel.contains(e.target)) {
+            resetInfoPanel();
         }
     });
 }
 
 // ІНФО ПАНЕЛЬ
 function refreshInfoPanel(key) {
+    // === НОВЕ: Вмикаємо статистику та прибираємо стиль очікування ===
+    const stats = document.getElementById('statsContainer');
+    if (stats) stats.style.display = 'block';
+    
     const pTitle = document.getElementById('panelTitle');
     const pDesc = document.getElementById('panelDesc');
+    
+    // Вирівнюємо текст по лівому краю (бо в стані з шестернею він по центру)
+    pDesc.style.textAlign = 'left';
+    // =================================================================
+
     const btn = document.querySelector('.upgrade-btn');
     const statLevel = document.getElementById('statLevel');
     const barLevel = document.getElementById('barLevel');
@@ -289,4 +307,18 @@ async function updateEarthResources() {
     } catch (error) {
         console.error("Помилка отримання даних з БД:", error);
     }
+}
+
+// Повертає панель у стан очікування (з шестернею)
+function resetInfoPanel() {
+    selectedModuleKey = null;
+    document.getElementById('panelTitle').innerText = "ОЧІКУВАННЯ СИСТЕМИ";
+    document.getElementById('panelDesc').style.textAlign = 'center';
+    document.getElementById('panelDesc').innerHTML = `Натисніть на деталь ракети для сканування<br><br><span class="gear-icon">⚙️</span>`;
+    
+    const stats = document.getElementById('statsContainer');
+    if (stats) stats.style.display = 'none';
+    
+    const btn = document.querySelector('.upgrade-btn');
+    if (btn) btn.style.display = 'none';
 }
