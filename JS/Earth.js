@@ -55,7 +55,6 @@ function filterModulesByPlanet(modules) {
 
 // ОНОВЛЕННЯ ГРАФІКИ
 function updateRocketVisualsFromServer(modules) {
-    // Базові деталі не можуть бути менше 1
     let newState = { nose: 1, body: 1, engine: 1, fins: 1, cabin: 0, cargo: 0, solar: 0, booster: 0 };
     
     const planetSpecificModules = filterModulesByPlanet(modules);
@@ -83,13 +82,10 @@ function updateRocketVisualsFromServer(modules) {
     }
 }
 
-// АДАПТАЦІЯ ПІД ТЕЛЕФОН (Тапи замість мишки)
 function initInteractions() {
     const modules = document.querySelectorAll('.module');
     const panel = document.getElementById('infoPanel');
     
-    // Ми ПРИБРАЛИ звідси неіснуючу функцію upgradeSelectedModule, яка ламала код
-
     modules.forEach(mod => {
         mod.addEventListener('mouseenter', () => {
             const key = mod.getAttribute('data-module');
@@ -99,14 +95,13 @@ function initInteractions() {
         });
         
         mod.addEventListener('click', (e) => {
-            e.stopPropagation(); // Зупиняємо клік
+            e.stopPropagation(); 
             selectedModuleKey = mod.getAttribute('data-module');
             refreshInfoPanel(selectedModuleKey);
             panel.classList.add('active');
         });
     });
 
-    // Якщо натиснути в пусте місце екрану — скидаємо панель до шестерні
     document.addEventListener('click', (e) => {
         if (panel && !panel.contains(e.target)) {
             resetInfoPanel();
@@ -114,7 +109,6 @@ function initInteractions() {
     });
 }
 
-// ІНФО ПАНЕЛЬ
 function refreshInfoPanel(key) {
     const stats = document.getElementById('statsContainer');
     if (stats) stats.style.display = 'block';
@@ -127,7 +121,6 @@ function refreshInfoPanel(key) {
     const statLevel = document.getElementById('statLevel');
     const barLevel = document.getElementById('barLevel');
     
-    // Отримуємо елементи для "Ефективності"
     const statIntegrity = document.getElementById('statIntegrity');
     const barIntegrity = document.getElementById('barIntegrity');
 
@@ -147,7 +140,6 @@ function refreshInfoPanel(key) {
     });
 
     if (bestModule) {
-        // --- МОДУЛЬ ДОСЛІДЖЕНО ---
         pTitle.innerText = bestModule.name.toUpperCase();
         
         let statsText = "СТАТУС: Встановлено\n\nХАРАКТЕРИСТИКИ:\n";
@@ -161,12 +153,11 @@ function refreshInfoPanel(key) {
         if(statLevel) statLevel.innerText = `TIER ${bestModule.tier}`;
         if(barLevel) barLevel.style.width = `${(bestLevel / 8) * 100}%`; 
         
-        // Оновлюємо ефективність
         let efficiency = Math.min(100, 55 + (bestLevel * 6)); 
         if(statIntegrity) statIntegrity.innerText = `${efficiency}%`;
         if(barIntegrity) {
             barIntegrity.style.width = `${efficiency}%`;
-            barIntegrity.style.background = '#00ffcc'; // Неоново-зелений (Оптимально)
+            barIntegrity.style.background = '#00ffcc';
         }
 
         if (btn) btn.style.display = 'none'; 
@@ -181,30 +172,26 @@ function refreshInfoPanel(key) {
         else if(currentPlanet === 'JUPITER') { treeFile = 'tree_Jupiter.html'; planetNiceName = 'ЮПІТЕР'; }
 
         if (defaultModules.includes(key)) {
-            // --- БАЗОВА ДЕТАЛЬ ---
             pTitle.innerText = "БАЗОВА ДЕТАЛЬ";
-            pDesc.innerText = "Це стандартна заводська деталь (Рівень 1).\n\nВона не має додаткових бонусів та характеристик.";
+            pDesc.innerText = "Це standardна заводська деталь (Рівень 1).\n\nВона не має додаткових бонусів та характеристик.";
             
             if(statLevel) statLevel.innerText = "TIER I";
             if(barLevel) barLevel.style.width = "12.5%";
             
-            // Ефективність базової деталі - 50%
             if(statIntegrity) statIntegrity.innerText = "50%";
             if(barIntegrity) {
                 barIntegrity.style.width = "50%";
-                barIntegrity.style.background = '#ffaa00'; // Помаранчевий (потребує заміни)
+                barIntegrity.style.background = '#ffaa00';
             }
             
             if (btn) btn.style.display = 'none';
         } else {
-            // --- СЛОТ ПУСТИЙ ---
             pTitle.innerText = "МОДУЛЬ ВІДСУТНІЙ";
             pDesc.innerText = `Цей слот порожній для планети ${planetNiceName}.\n\nПерейдіть до Дерева розробок, щоб дослідити та встановити необхідні технології.`;
             
             if(statLevel) statLevel.innerText = "TIER 0";
             if(barLevel) barLevel.style.width = "0%";
             
-            // Ефективність відсутньої деталі - 0%
             if(statIntegrity) statIntegrity.innerText = "0%";
             if(barIntegrity) barIntegrity.style.width = "0%";
             
@@ -223,7 +210,6 @@ function refreshInfoPanel(key) {
     }
 }
 
-// НАВІГАЦІЯ
 function initNavigation() {
     const planets = document.querySelectorAll('.planet-item');
     planets.forEach(planet => {
@@ -271,7 +257,6 @@ function initNavigation() {
     }
 }
 
-// ФОНОВІ ЗІРКИ
 function initHyperSpace() {
     const container = document.getElementById('space-container');
     if (!container) return;
@@ -307,7 +292,7 @@ function initHyperSpace() {
     }
 }
 
-// ЗАВАНТАЖЕННЯ ДАНИХ
+// === ОНОВЛЕНО: ЗАВАНТАЖЕННЯ ДАНИХ ТА БЛОКУВАННЯ ПЛАНЕТ ===
 async function updateEarthResources() {
     const urlParams = new URLSearchParams(window.location.search);
     const familyId = urlParams.get('family_id');
@@ -334,12 +319,35 @@ async function updateEarthResources() {
                 refreshInfoPanel(selectedModuleKey);
             }
         }
+
+        // --- ЛОГІКА БЛОКУВАННЯ ПЛАНЕТ ---
+        if (data.unlocked_planets) {
+            // Перетворюємо список відкритих планет у верхній регістр для зручного порівняння
+            const unlockedUpper = data.unlocked_planets.map(p => p.toUpperCase());
+            
+            const planets = document.querySelectorAll('.planet-item');
+            
+            planets.forEach(planet => {
+                const nameElement = planet.querySelector('.planet-name');
+                if (nameElement) {
+                    const name = nameElement.innerText.trim().toUpperCase();
+                    
+                    // Якщо планета Є в списку відкритих
+                    if (unlockedUpper.includes(name)) {
+                        planet.classList.remove('locked-planet');
+                    } else {
+                        // Якщо планети НЕМАЄ в списку
+                        planet.classList.add('locked-planet');
+                    }
+                }
+            });
+        }
+
     } catch (error) {
         console.error("Помилка отримання даних з БД:", error);
     }
 }
 
-// Повертає панель у стан очікування (з шестернею)
 function resetInfoPanel() {
     selectedModuleKey = null;
     document.getElementById('panelTitle').innerText = "ОЧІКУВАННЯ СИСТЕМИ";

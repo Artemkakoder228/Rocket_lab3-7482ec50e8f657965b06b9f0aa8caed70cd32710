@@ -151,9 +151,17 @@ def get_inventory():
                 mod_info['id'] = uid
                 modules_list.append(mod_info)
 
+        # --- НОВИЙ КОД: Отримуємо розблоковані планети ---
+        try:
+            unlocked_planets = db.get_unlocked_planets(family_id)
+        except Exception:
+            unlocked_planets = ['Earth'] # Захист від помилок, якщо колонки ще немає
+        # --------------------------------------------------
+
         return jsonify({
             'resources': resources_data,
-            'modules': modules_list
+            'modules': modules_list,
+            'unlocked_planets': unlocked_planets # Відправляємо на сайт
         })
     except Exception as e:
         print(f"Error: {e}")

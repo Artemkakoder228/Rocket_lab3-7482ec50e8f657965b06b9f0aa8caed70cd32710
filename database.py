@@ -496,7 +496,8 @@ class Database:
                 self.cursor.execute("""
                     SELECT 
                         balance, res_iron, res_fuel, res_regolith, 
-                        res_he3, res_silicon, res_oxide, res_hydrogen, res_helium
+                        res_he3, res_silicon, res_oxide, res_hydrogen, res_helium,
+                        unlocked_planets
                     FROM families
                     WHERE id = %s
                 """, (family_id,))
@@ -507,13 +508,18 @@ class Database:
                 owned_ids = [row[0] for row in upgrades]
 
                 if not res: return None
+                
+                # Обробка списку планет
+                unlocked_str = res[9]
+                unlocked_list = unlocked_str.split(',') if unlocked_str else ['Earth']
 
                 return {
                     "resources": {
                         "coins": res[0], "iron": res[1], "fuel": res[2], "regolith": res[3],
                         "he3": res[4], "silicon": res[5], "oxide": res[6], "hydrogen": res[7], "helium": res[8]
                     },
-                    "owned_modules": owned_ids
+                    "owned_modules": owned_ids,
+                    "unlocked_planets": unlocked_list # <--- ДОДАЛИ СЮДИ
                 }
         except Exception as e:
             print(f"DB Inventory Error: {e}")
