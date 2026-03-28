@@ -41,19 +41,20 @@ CATALOG = {
     'root3': {'name': 'Кабіна Екіпажу', 'type': 'cabin', 'tier': 'II', 'cost': {'regolith': 0, 'he3': 0, 'coins': 0}, 'stats': {'aerodynamics': 25}},
     'branch3': {'name': 'Керамічний Щит', 'type': 'nose', 'tier': 'III', 'cost': {'regolith': 500, 'he3': 300, 'coins': 1100}, 'stats': {'aerodynamics': 55}},
 
-    # --- МАРС (Mars) ---
-    # ВИПРАВЛЕНО: 'type': 'cargo'
+   # --- МАРС (Mars) ---
     'g1_1': {'name': 'Вантажний Відсік', 'type': 'cargo', 'tier': 'III', 'cost': {'silicon': 0, 'oxide': 0, 'coins': 0}, 'stats': {'armor': 200}},
     'g1_2': {'name': 'Герметизація', 'type': 'body', 'tier': 'IV', 'cost': {'silicon': 900, 'oxide': 500, 'coins': 2500}, 'stats': {'armor': 450}},
-    'g1_up': {'name': 'Панель Оновлення', 'type': 'body', 'tier': 'III', 'cost': {'silicon': 1200, 'oxide': 800, 'coins': 3500}, 'stats': {'armor': 350}},
-    # ВИПРАВЛЕНО: 'type': 'solar'
+    # ВИПРАВЛЕНО НА 'cabin' (щоб працювало як відсік кабіни/оновлення)
+    'g1_up': {'name': 'Панель Оновлення', 'type': 'cabin', 'tier': 'III', 'cost': {'silicon': 1200, 'oxide': 800, 'coins': 3500}, 'stats': {'armor': 350}},
+    'g1_up2': {'name': 'Лабораторний Модуль', 'type': 'cargo', 'tier': 'IV', 'cost': {'silicon': 2000, 'oxide': 1200, 'coins': 5000}, 'stats': {'armor': 600}},
     'g1_down': {'name': 'Сонячні Панелі', 'type': 'solar', 'tier': 'V', 'cost': {'silicon': 1000, 'oxide': 600, 'coins': 3000}, 'stats': {'armor': 600}},
-    # ВИПРАВЛЕНО: 'type': 'solar'
     'g1_end': {'name': 'Нові Панелі MK-II', 'type': 'solar', 'tier': 'VI', 'cost': {'silicon': 1500, 'oxide': 1000, 'coins': 5000}, 'stats': {'armor': 900}},
 
     'g2_1': {'name': 'Турбо-Форсаж', 'type': 'engine', 'tier': 'III', 'cost': {'silicon': 0, 'oxide': 0, 'coins': 0}, 'stats': {'speed': 150}},
     'g2_up': {'name': 'Покращений Форсаж', 'type': 'engine', 'tier': 'IV', 'cost': {'silicon': 1800, 'oxide': 1200, 'coins': 4500}, 'stats': {'speed': 320}},
-    'g2_down': {'name': 'Бокові Турбіни', 'type': 'engine', 'tier': 'III', 'cost': {'silicon': 1200, 'oxide': 800, 'coins': 3200}, 'stats': {'speed': 210}},
+    # ВИПРАВЛЕНО НА 'booster' (щоб працювало як бокові рушії)
+    'g2_down': {'name': 'Бокові Турбіни', 'type': 'booster', 'tier': 'III', 'cost': {'silicon': 1200, 'oxide': 800, 'coins': 3200}, 'stats': {'speed': 210}},
+    'g2_down2': {'name': 'Аеро-Стабілізатори', 'type': 'fins', 'tier': 'IV', 'cost': {'silicon': 1600, 'oxide': 900, 'coins': 3800}, 'stats': {'handling': 85}},
 
     'g3_a1': {'name': 'Керамічний Щит', 'type': 'nose', 'tier': 'III', 'cost': {'silicon': 0, 'oxide': 0, 'coins': 0}, 'stats': {'aerodynamics': 55}},
     'g3_a2': {'name': 'Нова Верхівка', 'type': 'nose', 'tier': 'IV', 'cost': {'silicon': 1100, 'oxide': 600, 'coins': 2800}, 'stats': {'aerodynamics': 90}},

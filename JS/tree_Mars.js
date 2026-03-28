@@ -33,6 +33,13 @@ window.treeNodes = [
         x: 1500, y: 900, req: 'g1_2', owned: false, img: 'images/Korpus.png',
         cost: { silicon: 1200, oxide: 800, coins: 3500 }
     },
+    // --- НОВИЙ МОДУЛЬ (Лабораторія) ---
+    { 
+        id: 'g1_up2', name: 'Лабораторний Модуль', tier: 'IV', 
+        desc: 'Науковий відсік для аналізу марсіанського ґрунту на наявність води.', 
+        x: 1750, y: 900, req: 'g1_up', owned: false, img: 'images/Korpus.png',
+        cost: { silicon: 2000, oxide: 1200, coins: 5000 }
+    },
     { 
         id: 'g1_down', name: 'Сонячні Панелі', tier: 'V', 
         desc: 'Фотоелементи, адаптовані до спектру сонячного світла на Марсі.', 
@@ -65,6 +72,13 @@ window.treeNodes = [
         x: 1250, y: 1500, req: 'g2_1', owned: false, img: 'images/Turbina.png',
         cost: { silicon: 1200, oxide: 800, coins: 3200 }
     },
+    // --- НОВИЙ МОДУЛЬ (Аеро-Стабілізатори) ---
+    { 
+        id: 'g2_down2', name: 'Аеро-Стабілізатори', tier: 'IV', 
+        desc: 'Надміцні надкрилки для точного маневрування над каньйонами Марсу.', 
+        x: 1500, y: 1500, req: 'g2_down', owned: false, img: 'images/Stabilizator.png',
+        cost: { silicon: 1600, oxide: 900, coins: 3800 }
+    },
 
     // === ГРУПА 3: ЗАХИСТ ТА ЗБРОЯ ===
     { 
@@ -92,7 +106,6 @@ window.treeNodes = [
         cost: { silicon: 2000, oxide: 1500, coins: 5000 }
     }
 ];
-
 
 // --- DRAG LOGIC ---
 viewport.addEventListener('mousedown', (e) => {
@@ -145,8 +158,8 @@ async function init() {
     treeNodes.forEach(node => {
         const div = document.createElement('div');
         div.className = 'node';
-        if (node.owned) div.classList.add('owned', 'researched'); // Додано researched для стилів
-        div.id = node.id; // Змінено на чистий ID для легшого пошуку
+        if (node.owned) div.classList.add('owned', 'researched');
+        div.id = node.id;
         
         // Позиціонування
         div.style.left = node.x + 'px';
@@ -194,7 +207,7 @@ function drawLine(node) {
 
     const line = document.createElement('div');
     line.className = 'line';
-    if (node.owned) line.classList.add('highlight'); // Підсвітка лінії, якщо куплено
+    if (node.owned) line.classList.add('highlight');
     line.id = `line-${node.id}`;
 
     const startX = parent.x + NODE_WIDTH;
@@ -218,7 +231,7 @@ function highlightPath(nodeId) {
     document.querySelectorAll('.node, .line').forEach(el => el.classList.remove('highlight'));
     let currentId = nodeId;
     while (currentId) {
-        document.getElementById(currentId)?.classList.add('highlight'); // Виправлено пошук ID
+        document.getElementById(currentId)?.classList.add('highlight');
         document.getElementById(`line-${currentId}`)?.classList.add('highlight');
         const node = treeNodes.find(n => n.id === currentId);
         currentId = node ? node.req : null;
@@ -248,7 +261,6 @@ function openPanel(node) {
         const c = node.cost || {};
         
         // Визначаємо ресурси саме для Марса
-        // Якщо silicon або oxide відсутні в об'єкті, використовуємо 0
         const siliconVal = c.silicon !== undefined ? c.silicon : (c.iron || 0);
         const oxideVal = c.oxide !== undefined ? c.oxide : (c.fuel || 0);
         const coinsVal = c.coins || 0;
@@ -285,7 +297,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const familyId = urlParams.get('family_id');
     
-    // Виправлено пошук кнопки (клас .back-btn як у вашому HTML)
     const backBtn = document.querySelector('.back-btn'); 
     const path = window.location.pathname;
     
@@ -349,7 +360,7 @@ async function investigateModule(moduleId) {
                 if (checkStatus) checkStatus.innerHTML = '<span class="checkmark">✔</span>';
             }
             alert("Модуль успішно досліджено!");
-            location.reload(); // Перезавантаження для оновлення масиву та ліній
+            location.reload(); 
         } else {
             alert("Помилка: " + result.error);
         }

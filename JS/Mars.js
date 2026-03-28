@@ -16,7 +16,8 @@ let userOwnedModules = [];
 const PLANET_MODULE_POOLS = {
     'EARTH': ['gu1', 'gu2', 'nc1', 'h1', 'e1', 'e2', 'a1', 'a2'],
     'MOON':  ['root1', 'branch1_up1', 'branch1_up2', 'branch1_down1', 'root2', 'branch2_up', 'branch2_down', 'root3', 'branch3'],
-    'MARS':  ['g1_1', 'g1_2', 'g1_up', 'g1_down', 'g1_end', 'g2_1', 'g2_up', 'g2_down', 'g3_a1', 'g3_a2', 'g3_b1', 'g3_b2'],
+    // ДОДАЛИ g1_up2 ТА g2_down2 СЮДИ:
+    'MARS':  ['g1_1', 'g1_2', 'g1_up', 'g1_up2', 'g1_down', 'g1_end', 'g2_1', 'g2_up', 'g2_down', 'g2_down2', 'g3_a1', 'g3_a2', 'g3_b1', 'g3_b2'],
     'JUPITER': ['hull_start', 'hull_mk2', 'solar_upg', 'solar_max', 'aux_bay', 'combat_bay', 'cannons', 'eng_start', 'eng_ultimate', 'eng_side', 'nose_start', 'nose_adv']
 };
 
