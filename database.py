@@ -119,6 +119,19 @@ class Database:
                 )
             """)
 
+            self.cursor.execute("""
+                CREATE TABLE IF NOT EXISTS quizzes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    question TEXT,
+                    opt1 TEXT,
+                    opt2 TEXT,
+                    opt3 TEXT,
+                    opt4 TEXT,
+                    correct_opt INTEGER,
+                    reward INTEGER
+                )
+            """)
+
     # --- МЕТОДИ ---
 
     def create_family(self, user_id, family_name):
@@ -131,7 +144,17 @@ class Database:
             family_id = self.cursor.fetchone()[0]
             
             # ДОДАЄМО ПОЧАТКОВІ МОДУЛІ В БД (щоб JS бачив їх як owned)
-            starting_modules = ['gu1', 'nc1', 'e1', 'a1']
+            # ДОДАЄМО ПОЧАТКОВІ МОДУЛІ В БД (щоб JS бачив їх як owned та працював requires)
+            starting_modules = [
+                # Земля
+                'gu1', 'nc1', 'e1', 'a1',
+                # Місяць
+                'root1', 'root2', 'root3',
+                # Марс
+                'g1_1', 'g2_1', 'g3_a1', 'g3_b1',
+                # Юпітер
+                'hull_start', 'eng_start', 'nose_start', 'cannons'
+            ]
             for m_id in starting_modules:
                 self.cursor.execute(
                     "INSERT INTO family_upgrades (family_id, module_id) VALUES (%s, %s)",
@@ -592,3 +615,24 @@ class Database:
         with self.connection:
             self.cursor.execute(f"SELECT mine_lvl_{p}, last_coll_{p} FROM families WHERE id = %s", (family_id,))
             return self.cursor.fetchone()
+    
+    # --- ДОСЛІДНИЦЬКА ЛАБОРАТОРІЯ ---
+    def add_quiz(self, question, opt1, opt2, opt3, opt4, correct_opt, reward):
+        with self.connection:
+            self.cursor.execute("""
+                INSERT INTO quizzes (question, opt1, opt2, opt3, opt4, correct_opt, reward)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (question, opt1, opt2, opt3, opt4, correct_opt, reward))
+
+    def get_random_quiz(self):
+        # Беремо одне випадкове питання
+        self.cursor.execute("SELECT * FROM quizzes ORDER BY RANDOM() LIMIT 1")
+        return self.cursor.fetchone()
+
+    def get_quiz_by_id(self, quiz_id):
+        self.cursor.execute("SELECT * FROM quizzes WHERE id = ?", (quiz_id,))
+        return self.cursor.fetchone()
+
+    def give_quiz_reward(self, family_id, reward):
+        with self.connection:
+            self.cursor.execute("UPDATE families SET balance = balance + ? WHERE id = ?", (reward, family_id))

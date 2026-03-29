@@ -22,7 +22,7 @@ window.treeNodes = [
     { 
         id: 'g1_1', name: 'Вантажний Відсік', tier: 'III', 
         desc: 'Базовий модуль для перевезення марсіанських мінералів.', 
-        x: 1000, y: 1000, req: null, owned: true, img: 'images/Korpus.png',
+        x: 1000, y: 1000, req: null, owned: false, img: 'images/Korpus.png', // Змінено на false
         cost: { silicon: 0, oxide: 0, coins: 0 }
     },
     { 
@@ -61,7 +61,7 @@ window.treeNodes = [
     { 
         id: 'g2_1', name: 'Турбо-Форсаж', tier: 'III', 
         desc: 'Система впорскування для прискорення в розрідженій атмосфері.', 
-        x: 1000, y: 1400, req: null, owned: true, img: 'images/Turbina.png',
+        x: 1000, y: 1400, req: null, owned: false, img: 'images/Turbina.png', // Змінено на false
         cost: { silicon: 0, oxide: 0, coins: 0 }
     },
     { 
@@ -88,7 +88,7 @@ window.treeNodes = [
     { 
         id: 'g3_a1', name: 'Керамічний Щит', tier: 'III', 
         desc: 'Термостійке покриття, стійке до абразивного впливу пилу.', 
-        x: 1000, y: 1700, req: null, owned: true, img: 'images/Nose.png',
+        x: 1000, y: 1700, req: null, owned: false, img: 'images/Nose.png', // Змінено на false
         cost: { silicon: 0, oxide: 0, coins: 0 }
     },
     { 
@@ -100,7 +100,7 @@ window.treeNodes = [
     { 
         id: 'g3_b1', name: 'Бластер', tier: 'I', 
         desc: 'Стандартний лазер для розчищення шляху від метеоритів.', 
-        x: 1000, y: 1900, req: null, owned: true, img: 'images/Blasters.png',
+        x: 1000, y: 1900, req: null, owned: false, img: 'images/Blasters.png', // Змінено на false
         cost: { silicon: 0, oxide: 0, coins: 0 }
     },
     { 

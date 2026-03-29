@@ -25,7 +25,7 @@ window.treeNodes = [
         tier: 'I',
         desc: 'Аеродинамічний обтікач для зниження опору повітря під час зльоту.',
         x: 1000, y: 1000,
-        req: null, owned: true, img: 'images/Nose.png',
+        req: null, owned: false, img: 'images/Nose.png', // Змінено на false
         rocketKey: 'nose', level: 1,
         cost: { iron: 0, fuel: 0, coins: 0 } 
     },
@@ -47,7 +47,7 @@ window.treeNodes = [
         tier: 'I',
         desc: 'Стандартна алюмінієва оболонка для паливних баків.',
         x: 1000, y: 1250,
-        req: null, owned: true, img: 'images/Korpus.png',
+        req: null, owned: false, img: 'images/Korpus.png', // Змінено на false
         rocketKey: 'body', level: 1,
         cost: { iron: 0, fuel: 0, coins: 0 }
     },
@@ -69,7 +69,7 @@ window.treeNodes = [
         tier: 'I',
         desc: 'Базовий насос для подачі паливної суміші в камеру згоряння.',
         x: 1000, y: 1500,
-        req: null, owned: true, img: 'images/Turbina.png',
+        req: null, owned: false, img: 'images/Turbina.png', // Змінено на false
         rocketKey: 'engine', level: 1,
         cost: { iron: 0, fuel: 0, coins: 0 }
     },
@@ -91,7 +91,7 @@ window.treeNodes = [
         tier: 'I',
         desc: 'Пасивні стабілізатори для стійкості ракети в польоті.',
         x: 1000, y: 1750,
-        req: null, owned: true, img: 'images/Stabilizator.png',
+        req: null, owned: false, img: 'images/Stabilizator.png', // Змінено на false
         rocketKey: 'fins', level: 1,
         cost: { iron: 0, fuel: 0, coins: 0 }
     },

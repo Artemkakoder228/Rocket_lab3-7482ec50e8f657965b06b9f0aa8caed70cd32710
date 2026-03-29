@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Дослідницька Лабораторія</title>
+    <link rel="stylesheet" href="CSS/Earth.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        .quiz-container {
+            background: rgba(10, 15, 30, 0.85);
+            border: 2px solid var(--accent-cyan);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        .question-text { font-size: 20px; margin-bottom: 20px; color: white; }
+        .option-btn {
+            display: block; width: 100%; padding: 15px; margin-bottom: 10px;
+            background: rgba(0, 243, 255, 0.1); border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan); border-radius: 10px; font-family: 'Courier New', monospace;
+            font-size: 16px; cursor: pointer; transition: 0.2s;
+        }
+        .option-btn:hover { background: rgba(0, 243, 255, 0.3); }
+        .option-btn.correct { background: rgba(0, 255, 100, 0.3); border-color: #00ff64; color: #00ff64; }
+        .option-btn.wrong { background: rgba(255, 50, 50, 0.3); border-color: #ff3232; color: #ff3232; }
+        .reward-text { color: #ffaa00; font-weight: bold; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div id="space-container"></div>
+    <div class="header" style="justify-content: center;"><div class="logo">🔬 <span>ЛАБОРАТОРІЯ</span></div></div>
+
+    <div class="quiz-container" id="quizBox">
+        <h3 class="reward-text" id="rewardDisplay">Завантаження...</h3>
+        <div class="question-text" id="questionText">Встановлюємо зв'язок із сервером...</div>
+        <div id="optionsContainer"></div>
+    </div>
+
+    <button class="nav-btn" onclick="window.history.back()" style="margin: 20px;">Повернутися назад</button>
+
+    <script>
+        window.Telegram.WebApp.expand();
+        let currentQuizId = null;
+        const urlParams = new URLSearchParams(window.location.search);
+        const familyId = urlParams.get('family_id');
+
+        async function loadQuiz() {
+            try {
+                const res = await fetch('/api/quiz');
+                if (!res.ok) {
+                    document.getElementById('questionText').innerText = "Питань поки немає. Адміністратор ще працює над цим!";
+                    document.getElementById('rewardDisplay').innerText = "";
+                    return;
+                }
+                const data = await res.json();
+                currentQuizId = data.id;
+                
+                document.getElementById('rewardDisplay').innerText = `Нагорода: ${data.reward} 🪙`;
+                document.getElementById('questionText').innerText = data.question;
+                
+                const optsContainer = document.getElementById('optionsContainer');
+                optsContainer.innerHTML = '';
+                
+                data.options.forEach((opt, index) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn';
+                    btn.innerText = opt;
+                    btn.onclick = () => submitAnswer(index, btn);
+                    optsContainer.appendChild(btn);
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        async function submitAnswer(selectedIndex, btnElement) {
+            // Блокуємо всі кнопки
+            const allBtns = document.querySelectorAll('.option-btn');
+            allBtns.forEach(b => b.disabled = true);
+
+            const res = await fetch('/api/quiz/answer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ family_id: familyId, quiz_id: currentQuizId, answer: selectedIndex })
+            });
+            const result = await res.json();
+
+            if (result.correct) {
+                btnElement.classList.add('correct');
+                document.getElementById('questionText').innerText = `✅ Правильно! Ви отримали ${result.reward} 🪙`;
+                if(window.Telegram.WebApp.HapticFeedback) window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+            } else {
+                btnElement.classList.add('wrong');
+                allBtns[result.correct_index].classList.add('correct'); // Показуємо правильну
+                document.getElementById('questionText').innerText = `❌ Неправильно! Спробуйте наступного разу.`;
+                if(window.Telegram.WebApp.HapticFeedback) window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+            }
+
+            // Завантажуємо нове питання через 3 секунди
+            setTimeout(loadQuiz, 3000);
+        }
+
+        loadQuiz();
+    </script>
+</body>
+</html>

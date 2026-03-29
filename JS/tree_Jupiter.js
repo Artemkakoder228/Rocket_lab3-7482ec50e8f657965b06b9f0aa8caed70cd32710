@@ -22,7 +22,7 @@ window.treeNodes = [
     { 
         id: 'hull_start', name: 'Герметизація', tier: 'IV', 
         desc: 'Покращена ізоляція відсіку для захисту вантажу в атмосфері Юпітера.', 
-        x: 1000, y: 1000, req: null, owned: true, img: 'images/Korpus.png',
+        x: 1000, y: 1000, req: null, owned: false, img: 'images/Korpus.png', // Змінено на false
         cost: { hydrogen: 0, helium: 0, coins: 0 }
     },
     { 
@@ -60,7 +60,7 @@ window.treeNodes = [
     { 
         id: 'eng_start', name: 'Форсаж', tier: 'IV', 
         desc: 'Стійкий до гравітації рушій для газового гіганта.', 
-        x: 1000, y: 1400, req: null, owned: true, img: 'images/Turbina.png',
+        x: 1000, y: 1400, req: null, owned: false, img: 'images/Turbina.png', // Змінено на false
         cost: { hydrogen: 0, helium: 0, coins: 0 }
     },
     { 
@@ -80,7 +80,7 @@ window.treeNodes = [
     { 
         id: 'nose_start', name: 'Титановий Конус', tier: 'IV', 
         desc: 'Посилена конструкція для прориву щільних хмар.', 
-        x: 1000, y: 1700, req: null, owned: true, img: 'images/Nose.png',
+        x: 1000, y: 1700, req: null, owned: false, img: 'images/Nose.png', // Змінено на false
         cost: { hydrogen: 0, helium: 0, coins: 0 }
     },
     { 
@@ -92,7 +92,7 @@ window.treeNodes = [
     { 
         id: 'cannons', name: 'Плазмові Гармати', tier: 'I', 
         desc: 'Важка зброя для захисту від агресивних астероїдів.', 
-        x: 1000, y: 1900, req: null, owned: true, img: 'images/Blasters.png',
+        x: 1000, y: 1900, req: null, owned: false, img: 'images/Blasters.png', // Змінено на false
         cost: { hydrogen: 8000, helium: 6000, coins: 20000 }
     }
 ];

@@ -252,6 +252,43 @@ def buy_shop_item():
     except Exception as e:
         print(f"SHOP ERROR: {e}")
         return jsonify({'error': 'Помилка транзакції'}), 500
+    
+@app.route('/api/quiz', methods=['GET'])
+def get_quiz():
+    quiz = db.get_random_quiz()
+    if not quiz:
+        return jsonify({'error': 'Питань поки немає'}), 404
+    
+    # quiz = (id, question, opt1, opt2, opt3, opt4, correct_opt, reward)
+    return jsonify({
+        'id': quiz[0],
+        'question': quiz[1],
+        'options': [quiz[2], quiz[3], quiz[4], quiz[5]],
+        'reward': quiz[7]
+    })
+
+@app.route('/api/quiz/answer', methods=['POST'])
+def submit_quiz_answer():
+    data = request.json
+    family_id = data.get('family_id')
+    quiz_id = data.get('quiz_id')
+    user_answer_index = data.get('answer') # 0, 1, 2 або 3
+    
+    quiz = db.get_quiz_by_id(quiz_id)
+    if not quiz:
+        return jsonify({'success': False, 'message': 'Питання не знайдено'})
+    
+    # У базі правильна відповідь збережена як 1-4, а індекси масиву 0-3
+    correct_index = quiz[6] - 1 
+    
+    if user_answer_index == correct_index:
+        # Правильно! Видаємо нагороду
+        reward = quiz[7]
+        db.give_quiz_reward(family_id, reward)
+        return jsonify({'success': True, 'correct': True, 'reward': reward})
+    else:
+        # Неправильно
+        return jsonify({'success': True, 'correct': False, 'correct_index': correct_index})
 
 @app.route('/api/investigate', methods=['POST'])
 def investigate():
