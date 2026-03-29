@@ -2,11 +2,13 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.types.web_app_info import WebAppInfo
+from config import WEB_APP_URL # Обов'язково додаємо імпорт вашого URL
 
 def get_main_kb_no_family():
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="🚀 Створити сім'ю"), KeyboardButton(text="🔗 Приєднатися до сім'ї")]
+            [KeyboardButton(text="🚀 Створити сім'ю"), KeyboardButton(text="🔗 Приєднатися до сім'ї")],
+            [KeyboardButton(text="💬 Зв'язок з розробником", web_app=WebAppInfo(url=f"{WEB_APP_URL}/feedback.html"))]
         ], 
         resize_keyboard=True
     )
@@ -19,7 +21,9 @@ def get_main_kb_with_family():
             [KeyboardButton(text="🛒 Магазин"), KeyboardButton(text="🎁 Вітальний бонус")],
             [KeyboardButton(text="🎲 Розваги"), KeyboardButton(text="⚔️ Рейд")],
             [KeyboardButton(text="👾 Космічний бій"), KeyboardButton(text="🚀 Навігація")],
-            [KeyboardButton(text="🔬 Лабораторія"), KeyboardButton(text="❌ Покинути сім'ю")] # Додали сюди
+            [KeyboardButton(text="🔬 Лабораторія"), KeyboardButton(text="❌ Покинути сім'ю")],
+            # Додали кнопку для виклику WebApp відгуків
+            [KeyboardButton(text="💬 Зв'язок з розробником", web_app=WebAppInfo(url=f"{WEB_APP_URL}/feedback.html"))] 
         ], 
         resize_keyboard=True
     )

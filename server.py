@@ -258,8 +258,8 @@ def buy_shop_item():
 @app.route('/api/quiz', methods=['GET'])
 def get_quiz():
     family_id = request.args.get('family_id')
-    planet = request.args.get('planet', 'Earth')
-    difficulty = request.args.get('difficulty', 'easy') # Читаємо складність
+    planet = request.args.get('planet', 'Earth').capitalize() # <-- Додано .capitalize()
+    difficulty = request.args.get('difficulty', 'easy')
     
     if not family_id: return jsonify({'error': 'Не вказано ID сім\'ї'}), 400
 
@@ -347,6 +347,33 @@ def leave_quiz():
     # Відправляємо повідомлення напряму через Telegram API
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     requests.post(url, json={"chat_id": user_id, "text": text, "parse_mode": "Markdown"})
+
+    return jsonify({'success': True})
+
+@app.route('/api/feedback', methods=['POST'])
+def submit_feedback():
+    data = request.json
+    user_id = data.get('user_id')
+    username = data.get('username')
+    text = data.get('text')
+
+    # ⚠️ ВАШ ОСОБИСТИЙ TELEGRAM ID (щоб бот знав, куди писати)
+    ADMIN_ID = "1709621202" 
+
+    if not text:
+        return jsonify({'success': False, 'message': 'Порожній текст'}), 400
+
+    # Формуємо красиве повідомлення для вас
+    msg = (
+        f"📩 <b>НОВИЙ РАПОРТ ВІД ГРАВЦЯ</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 Пілот: <b>@{username}</b> (ID: <code>{user_id}</code>)\n"
+        f"💬 Повідомлення:\n<i>{text}</i>"
+    )
+
+    # Відправляємо повідомлення через API Telegram напряму вам
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    requests.post(url, json={"chat_id": ADMIN_ID, "text": msg, "parse_mode": "HTML"})
 
     return jsonify({'success': True})
     

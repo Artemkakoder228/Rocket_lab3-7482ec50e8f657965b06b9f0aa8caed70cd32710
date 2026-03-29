@@ -121,8 +121,9 @@ class Database:
 
             # Перестворюємо таблицю з колонкою planet
             # self.cursor.execute("DROP TABLE IF EXISTS quizzes")
+            # Таблиця для питань лабораторії
             self.cursor.execute("""
-                CREATE TABLE quizzes (
+                CREATE TABLE IF NOT EXISTS quizzes (
                     id SERIAL PRIMARY KEY,
                     planet TEXT DEFAULT 'Earth',
                     question TEXT,
