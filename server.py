@@ -258,10 +258,15 @@ def buy_shop_item():
 @app.route('/api/quiz', methods=['GET'])
 def get_quiz():
     family_id = request.args.get('family_id')
-    planet = request.args.get('planet', 'Earth').capitalize() # <-- Додано .capitalize()
+    planet = request.args.get('planet', 'Earth').capitalize() 
     difficulty = request.args.get('difficulty', 'easy')
     
     if not family_id: return jsonify({'error': 'Не вказано ID сім\'ї'}), 400
+
+    # ПЕРЕВІРКА НА 5 СПРОБ В ДЕНЬ
+    can_play, attempts_left = db.check_quiz_attempts(family_id)
+    if not can_play:
+        return jsonify({'error': '⏳ Ви використали всі 5 спроб на сьогодні. Повертайтесь завтра!'}), 403
 
     unlocked = db.get_unlocked_planets(family_id)
     if planet not in unlocked: return jsonify({'error': '❌ Ця планета ще не досліджена!'}), 403
@@ -274,7 +279,6 @@ def get_quiz():
     res_main = int(reward_coins * 0.05)
     res_rare = int(reward_coins * 0.02)
     
-    # Формуємо іконки ресурсів під планету
     if planet.lower() == 'earth': res_text = f"{res_main} 🪨 | {res_rare} ⛽"
     elif planet.lower() == 'moon': res_text = f"{res_main} 🌑 | {res_rare} 💨"
     elif planet.lower() == 'mars': res_text = f"{res_main} 💠 | {res_rare} 🔴"
@@ -284,7 +288,8 @@ def get_quiz():
     return jsonify({
         'id': quiz[0], 'planet': quiz[1], 'question': quiz[2],
         'options': [quiz[3], quiz[4], quiz[5], quiz[6]],
-        'reward_text': f"{reward_coins} 🪙 | {res_text}"
+        'reward_text': f"{reward_coins} 🪙 | {res_text}",
+        'attempts_left': attempts_left # <--- Передаємо кількість спроб
     })
 
 # В роуті /api/quiz/answer потрібно змінити індекси:
@@ -293,6 +298,9 @@ def submit_quiz_answer():
     data = request.json
     family_id, quiz_id, user_answer_index = data.get('family_id'), data.get('quiz_id'), data.get('answer')
     
+    # ЗБІЛЬШУЄМО ЛІЧИЛЬНИК СПРОБ, КОЛИ ГРАВЕЦЬ ДАВ ВІДПОВІДЬ
+    db.increment_quiz_attempt(family_id)
+
     quiz = db.get_quiz_by_id(quiz_id)
     if not quiz: return jsonify({'success': False, 'message': 'Питання не знайдено'})
     
@@ -312,7 +320,6 @@ def submit_quiz_answer():
         elif planet.lower() == 'jupiter': res_text = f"{res_main} Водню та {res_rare} Гелію"
         else: res_text = ""
         
-        # Тепер ми повертаємо не тільки текст, а й точні числа для калькулятора на сайті
         return jsonify({
             'success': True, 
             'correct': True, 
@@ -321,6 +328,8 @@ def submit_quiz_answer():
             'res_main': res_main,
             'res_rare': res_rare
         })
+    else:
+        return jsonify({'success': True, 'correct': False, 'correct_index': correct_index})
     
 @app.route('/api/quiz/leave', methods=['POST'])
 def leave_quiz():

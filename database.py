@@ -136,10 +136,14 @@ class Database:
                 )
             """)
         # Додаємо колонку для Колеса Фортуни, якщо її немає
+        # Безпечне додавання нових колонок для Колеса та Лабораторії
         try:
-            self.cursor.execute("ALTER TABLE families ADD COLUMN last_fortune TIMESTAMP DEFAULT to_timestamp(0)")
+            self.cursor.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS last_fortune TIMESTAMP DEFAULT to_timestamp(0)")
+            self.cursor.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS quiz_attempts INTEGER DEFAULT 0")
+            self.cursor.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS last_quiz_date DATE DEFAULT CURRENT_DATE")
             self.connection.commit()
-        except Exception:
+        except Exception as e:
+            print(f"Помилка оновлення бази даних: {e}")
             self.connection.rollback()
     # --- МЕТОДИ ---
 
@@ -675,6 +679,31 @@ class Database:
         
         with self.connection:
             self.cursor.execute(query, tuple(params))
+
+    def check_quiz_attempts(self, family_id):
+        import datetime
+        with self.connection:
+            self.cursor.execute("SELECT quiz_attempts, last_quiz_date FROM families WHERE id = %s", (family_id,))
+            res = self.cursor.fetchone()
+            if not res: return False, 0
+            
+            attempts, last_date = res[0], res[1]
+            today = datetime.date.today()
+            
+            if last_date != today:
+                # Скидаємо лічильник на новий день
+                self.cursor.execute("UPDATE families SET quiz_attempts = 0, last_quiz_date = %s WHERE id = %s", (today, family_id))
+                return True, 5
+            
+            if attempts >= 5:
+                return False, 0
+            return True, 5 - attempts
+
+    def increment_quiz_attempt(self, family_id):
+        import datetime
+        with self.connection:
+            today = datetime.date.today()
+            self.cursor.execute("UPDATE families SET quiz_attempts = quiz_attempts + 1, last_quiz_date = %s WHERE id = %s", (today, family_id))
 
     # --- КОЛЕСО ФОРТУНИ ---
     def check_fortune(self, family_id):

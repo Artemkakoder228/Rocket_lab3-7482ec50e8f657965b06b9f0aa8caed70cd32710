@@ -134,7 +134,8 @@
         currentPrizes.forEach((prize, index) => {
             const div = document.createElement('div');
             div.className = 'segment';
-            const rotation = (index * 45) + 22.5; 
+            // ВИПРАВЛЕНА МАТЕМАТИКА: Віднімаємо 90 градусів, щоб текст збігався з фоном
+            const rotation = (index * 45) + 22.5 - 90; 
             div.style.transform = `rotate(${rotation}deg)`;
             div.style.color = prize.color;
             div.innerText = prize.text;

@@ -81,8 +81,10 @@
         <button class="diff-btn diff-hard" onclick="startQuiz('hard')">🔴 Критичний експеримент<br><span style="font-size:12px; color:#aaa; font-weight:normal;">Високий ризик, максимальний прибуток</span></button>
     </div>
 
-    <div class="quiz-container" id="quizBox" style="display: none; opacity: 0;">
+   <div class="quiz-container" id="quizBox" style="display: none; opacity: 0;">
         <h3 class="reward-text" id="rewardDisplay">Завантаження...</h3>
+        <div id="attemptsDisplay" style="color: #aaa; font-size: 14px; margin-bottom: 15px; font-weight: bold;"></div>
+        
         <div class="question-text" id="questionText">Встановлюємо зв'язок із сервером...</div>
         <div id="optionsContainer"></div>
         <button class="action-btn" onclick="showMenu()">↩ Змінити складність</button>
@@ -154,18 +156,25 @@
             document.getElementById('questionText').innerText = "Отримуємо дані...";
             document.getElementById('optionsContainer').innerHTML = '';
             document.getElementById('rewardDisplay').innerText = '';
+            document.getElementById('attemptsDisplay').innerText = ''; // Очищаємо
 
             try {
                 const res = await fetch(`/api/quiz?family_id=${familyId}&planet=${planet}&difficulty=${currentDiff}`);
                 if (!res.ok) {
                     const errData = await res.json().catch(() => ({}));
                     document.getElementById('questionText').innerText = errData.error || "Питань цієї складності поки немає!";
+                    document.getElementById('questionText').style.color = "#ff3232"; // Червоний колір для помилки
                     return;
                 }
                 const data = await res.json();
                 currentQuizId = data.id;
                 
+                document.getElementById('questionText').style.color = "white";
                 document.getElementById('rewardDisplay').innerText = `Очікувана нагорода:\n${data.reward_text}`;
+                
+                // ВІДОБРАЖЕННЯ СПРОБ
+                document.getElementById('attemptsDisplay').innerText = `Залишилось спроб на сьогодні: ${data.attempts_left} / 5`;
+                
                 document.getElementById('questionText').innerText = data.question;
                 
                 const optsContainer = document.getElementById('optionsContainer');
