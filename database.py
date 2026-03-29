@@ -135,7 +135,12 @@ class Database:
                     reward INTEGER
                 )
             """)
-
+        # Додаємо колонку для Колеса Фортуни, якщо її немає
+        try:
+            self.cursor.execute("ALTER TABLE families ADD COLUMN last_fortune TIMESTAMP DEFAULT to_timestamp(0)")
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
     # --- МЕТОДИ ---
 
     def create_family(self, user_id, family_name):
@@ -670,3 +675,35 @@ class Database:
         
         with self.connection:
             self.cursor.execute(query, tuple(params))
+
+    # --- КОЛЕСО ФОРТУНИ ---
+    def check_fortune(self, family_id):
+        from datetime import datetime, timedelta
+        self.cursor.execute("SELECT last_fortune FROM families WHERE id = %s", (family_id,))
+        res = self.cursor.fetchone()
+        if not res or not res[0]: 
+            return True, "0:00"
+            
+        last_time = res[0]
+        now = datetime.now()
+        diff = now - last_time
+        
+        if diff >= timedelta(days=1):
+            return True, "0:00"
+        else:
+            left = timedelta(days=1) - diff
+            hours, rem = divmod(left.seconds, 3600)
+            mins, _ = divmod(rem, 60)
+            return False, f"{hours}г {mins}хв"
+
+    def claim_fortune(self, family_id, reward_type, amount):
+        from datetime import datetime
+        col_map = {
+            'coins': 'balance', 'iron': 'res_iron', 'fuel': 'res_fuel',
+            'silicon': 'res_silicon', 'oxide': 'res_oxide', 
+            'regolith': 'res_regolith', 'he3': 'res_he3'
+        }
+        col = col_map.get(reward_type, 'balance')
+        now = datetime.now()
+        with self.connection:
+            self.cursor.execute(f"UPDATE families SET {col} = {col} + %s, last_fortune = %s WHERE id = %s", (amount, now, family_id))

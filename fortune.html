@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Колесо Фортуни</title>
+    <link rel="stylesheet" href="CSS/Earth.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { text-align: center; color: white; display: flex; flex-direction: column; align-items: center; min-height: 90vh; padding-top: 20px;}
+        .header-title { font-size: 26px; font-weight: bold; text-shadow: 0 0 10px #ffaa00; margin-bottom: 5px; color: #ffaa00; }
+        .subtitle { color: #aaa; margin-bottom: 30px; font-size: 14px; }
+
+        /* Контейнер колеса */
+        .wheel-container { position: relative; width: 300px; height: 300px; margin: 0 auto; filter: drop-shadow(0 0 15px rgba(255, 170, 0, 0.4)); }
+        
+        /* Вказівник (стрілка) */
+        .pointer { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 30px; height: 40px; background: #fff; clip-path: polygon(50% 100%, 0 0, 100% 0); z-index: 10; filter: drop-shadow(0 0 5px #fff); }
+
+        /* Саме колесо */
+        .wheel {
+            width: 100%; height: 100%; border-radius: 50%; border: 4px solid #ffaa00;
+            background: conic-gradient(
+                #222 0 45deg, #111 45deg 90deg, #222 90deg 135deg, #111 135deg 180deg,
+                #222 180deg 225deg, #111 225deg 270deg, #222 270deg 315deg, #111 315deg 360deg
+            );
+            transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99); /* Плавне сповільнення */
+            position: relative; overflow: hidden;
+        }
+
+        /* Тексти на секторах (Генеруються динамічно) */
+        .segment { position: absolute; width: 50%; height: 20px; top: calc(50% - 10px); left: 50%; transform-origin: 0% 50%; font-weight: bold; font-family: monospace; font-size: 13px; text-align: right; padding-right: 15px; box-sizing: border-box; text-shadow: 0 0 5px #000; }
+
+        /* Кнопка прокрутки */
+        .spin-btn { display: block; width: 80%; padding: 15px; margin: 40px auto 0; background: linear-gradient(45deg, #ffaa00, #ff5500); border: none; color: #000; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 0 15px rgba(255, 170, 0, 0.5); }
+        .spin-btn:hover { filter: brightness(1.2); transform: scale(1.05); }
+        .spin-btn:disabled { background: #555; color: #888; box-shadow: none; transform: scale(1); cursor: not-allowed; }
+
+        .status { margin-top: 20px; font-size: 16px; font-weight: bold; color: #00ff64; display: none; }
+
+        /* === КРАСИВА АНІМОВАНА КНОПКА ПОВЕРНЕННЯ === */
+        .nav-btn-anim {
+            display: block; width: 80%; padding: 15px; margin: 30px auto;
+            background: rgba(0, 243, 255, 0.05);
+            border: 2px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            border-radius: 30px;
+            font-size: 16px; font-weight: bold;
+            cursor: pointer; text-transform: uppercase;
+            position: relative; overflow: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.1);
+        }
+        .nav-btn-anim:hover {
+            background: var(--accent-cyan); color: #000;
+            box-shadow: 0 0 25px var(--accent-cyan); transform: scale(1.03);
+        }
+        /* Ефект бліку (переливання) */
+        .nav-btn-anim::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            animation: shine 3s infinite;
+        }
+        @keyframes shine {
+            0% { left: -100%; } 20% { left: 200%; } 100% { left: 200%; }
+        }
+    </style>
+</head>
+<body>
+    <div id="space-container"></div>
+    
+    <div class="header-title">КОЛЕСО ФОРТУНИ</div>
+    <div class="subtitle" id="subText">Випробовуйте удачу раз на добу!</div>
+
+    <div class="wheel-container">
+        <div class="pointer"></div>
+        <div class="wheel" id="wheel">
+            </div>
+    </div>
+
+    <button class="spin-btn" id="spinBtn" onclick="spinWheel()">Завантаження...</button>
+    <div id="statusMsg" class="status"></div>
+
+    <button class="nav-btn-anim" onclick="window.Telegram.WebApp.close()">↩ Покинути лотерею</button>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const familyId = urlParams.get('family_id');
+        const userId = tg.initDataUnsafe?.user?.id || urlParams.get('user_id');
+
+        // === ЩОДЕННА ЗМІНА АСОРТИМЕНТУ ===
+        const prizeSets = [
+            [ // Набір 1: Класичний (Баланс монет та ресурсів)
+                { type: 'coins', amount: 5000, label: '5000 🪙 Джекпот!', text: '5000 🪙', color: '#ffd700' },
+                { type: 'iron', amount: 500, label: '500 🪨 Заліза', text: '500 🪨', color: '#aaa' },
+                { type: 'fuel', amount: 500, label: '500 ⛽ Палива', text: '500 ⛽', color: '#ff5500' },
+                { type: 'silicon', amount: 200, label: '200 💠 Кремнію', text: '200 💠', color: '#00ffff' },
+                { type: 'oxide', amount: 200, label: '200 🔴 Оксиду', text: '200 🔴', color: '#ff3333' },
+                { type: 'regolith', amount: 100, label: '100 🌑 Реголіту', text: '100 🌑', color: '#888' },
+                { type: 'he3', amount: 50, label: '50 💨 Гелію-3', text: '50 💨', color: '#aaaaff' },
+                { type: 'coins', amount: 1000, label: '1000 🪙 Монет', text: '1000 🪙', color: '#ffaa00' }
+            ],
+            [ // Набір 2: Промисловий (Багато Заліза та Палива)
+                { type: 'coins', amount: 2500, label: '2500 🪙 Міні Джекпот!', text: '2500 🪙', color: '#ffd700' },
+                { type: 'iron', amount: 1500, label: '1500 🪨 Заліза', text: '1500 🪨', color: '#aaa' },
+                { type: 'fuel', amount: 1500, label: '1500 ⛽ Палива', text: '1500 ⛽', color: '#ff5500' },
+                { type: 'iron', amount: 800, label: '800 🪨 Заліза', text: '800 🪨', color: '#aaa' },
+                { type: 'fuel', amount: 800, label: '800 ⛽ Палива', text: '800 ⛽', color: '#ff5500' },
+                { type: 'silicon', amount: 300, label: '300 💠 Кремнію', text: '300 💠', color: '#00ffff' },
+                { type: 'oxide', amount: 300, label: '300 🔴 Оксиду', text: '300 🔴', color: '#ff3333' },
+                { type: 'coins', amount: 500, label: '500 🪙 Монет', text: '500 🪙', color: '#ffaa00' }
+            ],
+            [ // Набір 3: Екзотичний (Рідкісні ресурси та Великий Джекпот)
+                { type: 'coins', amount: 7777, label: '7777 🪙 МЕГА Джекпот!', text: '7777 🪙', color: '#ffd700' },
+                { type: 'he3', amount: 150, label: '150 💨 Гелію-3', text: '150 💨', color: '#aaaaff' },
+                { type: 'regolith', amount: 300, label: '300 🌑 Реголіту', text: '300 🌑', color: '#888' },
+                { type: 'he3', amount: 80, label: '80 💨 Гелію-3', text: '80 💨', color: '#aaaaff' },
+                { type: 'regolith', amount: 150, label: '150 🌑 Реголіту', text: '150 🌑', color: '#888' },
+                { type: 'silicon', amount: 500, label: '500 💠 Кремнію', text: '500 💠', color: '#00ffff' },
+                { type: 'oxide', amount: 500, label: '500 🔴 Оксиду', text: '500 🔴', color: '#ff3333' },
+                { type: 'coins', amount: 1500, label: '1500 🪙 Монет', text: '1500 🪙', color: '#ffaa00' }
+            ]
+        ];
+
+        // Обираємо набір залежно від дня (міняється щодня)
+        const todayIndex = new Date().getDay() % prizeSets.length;
+        const currentPrizes = prizeSets[todayIndex];
+
+        // Динамічно малюємо колесо
+        const wheelObj = document.getElementById('wheel');
+        currentPrizes.forEach((prize, index) => {
+            const div = document.createElement('div');
+            div.className = 'segment';
+            const rotation = (index * 45) + 22.5; 
+            div.style.transform = `rotate(${rotation}deg)`;
+            div.style.color = prize.color;
+            div.innerText = prize.text;
+            wheelObj.appendChild(div);
+        });
+
+        let currentRotation = 0;
+
+        async function checkStatus() {
+            try {
+                const res = await fetch(`/api/fortune/check?family_id=${familyId}`);
+                const data = await res.json();
+                const btn = document.getElementById('spinBtn');
+                
+                if (data.can_spin) {
+                    btn.innerText = "🎡 Крутити колесо!";
+                    btn.disabled = false;
+                } else {
+                    btn.innerText = `⏳ Очікування: ${data.time_left}`;
+                    btn.disabled = true;
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function spinWheel() {
+            const btn = document.getElementById('spinBtn');
+            btn.disabled = true;
+            btn.innerText = "Обертання...";
+
+            // === ІДЕАЛЬНА МАТЕМАТИКА ОБЕРТАННЯ ===
+            // 1. Спочатку обираємо виграшний сектор
+            const winningIndex = Math.floor(Math.random() * 8);
+            const wonPrize = currentPrizes[winningIndex];
+
+            // 2. Рахуємо кут, щоб цей сектор став рівно під стрілку (на 0 градусів)
+            const targetRotation = 360 - ((winningIndex * 45) + 22.5);
+
+            // 3. Додаємо 10 повних обертів для краси і вираховуємо фінальний кут
+            const spins = 10 * 360;
+            currentRotation = currentRotation + spins + (360 - (currentRotation % 360)) + targetRotation;
+
+            // Візуальне обертання
+            document.getElementById('wheel').style.transform = `rotate(${currentRotation}deg)`;
+            tg.HapticFeedback.impactOccurred('heavy');
+
+            // Чекаємо завершення анімації (4 секунди)
+            setTimeout(async () => {
+                tg.HapticFeedback.notificationOccurred('success');
+                
+                document.getElementById('statusMsg').innerText = `✅ Ви виграли: ${wonPrize.label}`;
+                document.getElementById('statusMsg').style.display = 'block';
+
+                // Відправляємо дані на сервер
+                await fetch('/api/fortune/spin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ family_id: familyId, user_id: userId, type: wonPrize.type, amount: wonPrize.amount })
+                });
+
+                checkStatus();
+            }, 4000);
+        }
+
+        checkStatus();
+    </script>
+</body>
+</html>
