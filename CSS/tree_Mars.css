@@ -478,3 +478,19 @@ body, html {
         height: 20px;
     }
 }
+
+/* Візуалізація заблокованих планет у навігації */
+.planet-btn.locked-planet {
+    opacity: 0.4;
+    cursor: not-allowed;
+    color: #888;
+    background: rgba(255, 0, 0, 0.05);
+    border-color: rgba(255, 0, 0, 0.2);
+    pointer-events: auto; /* Залишаємо auto, щоб працював клік для alert() */
+}
+
+.planet-btn.locked-planet:hover {
+    background: rgba(255, 0, 0, 0.1);
+    box-shadow: none;
+    text-shadow: none;
+}

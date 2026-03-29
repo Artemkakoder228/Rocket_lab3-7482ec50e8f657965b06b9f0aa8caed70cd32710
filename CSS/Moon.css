@@ -770,3 +770,23 @@ header {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* Візуалізація заблокованих планет на головному екрані */
+/* --- Блокування недосліджених планет (як на Землі) --- */
+.locked-planet {
+    opacity: 0.4 !important;
+    pointer-events: none !important; /* Забороняє клік */
+    filter: grayscale(100%); /* Робить іконку чорно-білою */
+    position: relative;
+}
+
+/* Додає іконку замка поверх заблокованої планети */
+.locked-planet::after {
+    content: "🔒";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 30px;
+    z-index: 10;
+}

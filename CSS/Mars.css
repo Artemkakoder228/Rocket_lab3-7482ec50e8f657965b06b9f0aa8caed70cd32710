@@ -776,8 +776,21 @@ header {
     line-height: 1.6;
     margin-bottom: 2rem; 
 }
-.progress-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 5px; }
-.progress-fill { height: 100%; background: var(--accent-cyan); border-radius: 3px; width: 0%; transition: width 0.5s; }
+.progress-bg { 
+    width: 100%;
+    height: 6px; 
+    background: rgba(255,255,255,0.1); 
+    border-radius: 3px; 
+    margin-top: 5px;
+}
+.progress-fill { 
+    height: 100%; 
+    background: var(--accent-cyan); 
+    border-radius: 3px; 
+    width: 0%; 
+    transition: width 0.5s; 
+}
+
 .stat-row { 
     margin-bottom: 20px; 
 }
@@ -929,4 +942,23 @@ header {
 @keyframes spinGear {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* --- Блокування недосліджених планет (як на Землі) --- */
+.locked-planet {
+    opacity: 0.4 !important;
+    pointer-events: none !important; /* Забороняє клік */
+    filter: grayscale(100%); /* Робить іконку чорно-білою */
+    position: relative;
+}
+
+/* Додає іконку замка поверх заблокованої планети */
+.locked-planet::after {
+    content: "🔒";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 30px;
+    z-index: 10;
 }

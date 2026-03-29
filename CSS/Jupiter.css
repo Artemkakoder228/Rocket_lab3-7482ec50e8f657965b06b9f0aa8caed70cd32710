@@ -992,3 +992,17 @@ header {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* Візуалізація заблокованих планет у навігації */
+/* Візуалізація заблокованих планет на головному екрані */
+.planet-item.locked-planet {
+    opacity: 0.3;
+    cursor: not-allowed;
+    filter: grayscale(100%); /* Робить іконку чорно-білою */
+}
+
+.planet-item.locked-planet:hover {
+    transform: none; /* Відключаємо ефект збільшення при наведенні */
+    background: rgba(255, 0, 0, 0.1); /* Легке червоне підсвічування */
+    border-radius: 8px;
+}

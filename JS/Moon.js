@@ -248,6 +248,12 @@ function initNavigation() {
 
     planets.forEach(planet => {
         planet.addEventListener('click', () => {
+            // Перевіряємо, чи має кнопка клас заблокованої планети
+            if (planet.classList.contains('locked-planet')) {
+                alert("❌ Ця планета ще не досліджена! Відкрийте її через головне меню бота.");
+                return; // Зупиняємо перехід
+            }
+
             const planetName = planet.querySelector('.planet-name').innerText.trim();
             let targetPage = '';
 
@@ -319,12 +325,31 @@ async function updateMoonResources() {
         }
 
         // Записуємо модулі для коректної роботи Інфо-панелі
+        // Записуємо модулі для коректної роботи Інфо-панелі
         if (data.modules) {
             userOwnedModules = data.modules;
             if (selectedModuleKey) {
                 refreshInfoPanel(selectedModuleKey);
             }
         }
+
+        // --- БЛОКУВАННЯ НЕДОСЛІДЖЕНИХ ПЛАНЕТ ---
+        if (data.unlocked_planets) {
+            const unlockedLower = data.unlocked_planets.map(p => p.toLowerCase());
+            const planetItems = document.querySelectorAll('.planet-item');
+
+            planetItems.forEach(item => {
+                const planetNameSpan = item.querySelector('.planet-name');
+                if (planetNameSpan) {
+                    const pName = planetNameSpan.innerText.trim().toLowerCase();
+                    // Якщо планети немає в списку відкритих і це не поточна планета
+                    if (!unlockedLower.includes(pName)) {
+                        item.classList.add('locked-planet');
+                    }
+                }
+            });
+        }
+
     } catch (error) {
         console.error("Помилка отримання ресурсів:", error);
     }

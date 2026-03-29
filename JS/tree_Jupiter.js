@@ -202,6 +202,7 @@ window.addEventListener('touchend', (e) => {
 async function init() {
     canvas.style.transformOrigin = '0 0';
     
+    // --- СИНХРОНІЗАЦІЯ З БАЗОЮ ПЕРЕД МАЛЮВАННЯМ ---
     const urlParams = new URLSearchParams(window.location.search);
     const familyId = urlParams.get('family_id');
     
@@ -209,12 +210,42 @@ async function init() {
         try {
             const response = await fetch(`/api/inventory?family_id=${familyId}`);
             const data = await response.json();
+            
+            // 1. Відмічаємо куплені модулі
             if (data.modules) {
                 const ownedIds = data.modules.map(m => m.id);
                 window.treeNodes.forEach(node => {
                     if (ownedIds.includes(node.id)) node.owned = true;
                 });
             }
+
+            // 2. БЛОКУВАННЯ НЕДОСЛІДЖЕНИХ ПЛАНЕТ
+            if (data.unlocked_planets) {
+                const navButtons = document.querySelectorAll('.planet-btn');
+                const unlockedLower = data.unlocked_planets.map(p => p.toLowerCase());
+
+                navButtons.forEach(btn => {
+                    // Отримуємо назву планети з тексту кнопки (EARTH, MOON...)
+                    const planetNameBtn = btn.textContent.trim().toLowerCase();
+                    
+                    if (!unlockedLower.includes(planetNameBtn)) {
+                        // Якщо планета не відкрита
+                        btn.classList.add('locked-planet');
+                        btn.href = 'javascript:void(0);'; // Скасовуємо перехід
+                        btn.onclick = (e) => {
+                            e.preventDefault();
+                            alert("❌ Ця планета ще не досліджена! Відкрийте її через головне меню бота.");
+                        };
+                    } else {
+                        // Якщо відкрита — додаємо family_id до посилання, щоб не вибивало з акаунту при перемиканні
+                        const originalHref = btn.getAttribute('href');
+                        if (originalHref && !originalHref.includes('family_id') && !originalHref.includes('javascript')) {
+                            btn.href = `${originalHref}?family_id=${familyId}`;
+                        }
+                    }
+                });
+            }
+
         } catch (e) { console.error("DB Sync error:", e); }
     }
 
