@@ -4,6 +4,8 @@ from database import Database
 import datetime
 import random
 import os
+import requests
+from config import BOT_TOKEN
 
 # Вказуємо, що статичні файли (html, css, js) лежать прямо тут ('.')
 app = Flask(__name__, static_folder='.', static_url_path='')
@@ -304,16 +306,49 @@ def submit_quiz_answer():
         res_main = int(reward_coins * 0.05)
         res_rare = int(reward_coins * 0.02)
         
-        # Текст перемоги під планету
         if planet.lower() == 'earth': res_text = f"{res_main} Заліза та {res_rare} Палива"
         elif planet.lower() == 'moon': res_text = f"{res_main} Реголіту та {res_rare} Гелію-3"
         elif planet.lower() == 'mars': res_text = f"{res_main} Кремнію та {res_rare} Оксиду"
         elif planet.lower() == 'jupiter': res_text = f"{res_main} Водню та {res_rare} Гелію"
         else: res_text = ""
         
-        return jsonify({'success': True, 'correct': True, 'reward_text': f"{reward_coins} 🪙, {res_text}!"})
-    else:
-        return jsonify({'success': True, 'correct': False, 'correct_index': correct_index})
+        # Тепер ми повертаємо не тільки текст, а й точні числа для калькулятора на сайті
+        return jsonify({
+            'success': True, 
+            'correct': True, 
+            'reward_text': f"{reward_coins} 🪙, {res_text}!",
+            'reward_coins': reward_coins,
+            'res_main': res_main,
+            'res_rare': res_rare
+        })
+    
+@app.route('/api/quiz/leave', methods=['POST'])
+def leave_quiz():
+    data = request.json
+    user_id = data.get('user_id')
+    planet = data.get('planet', 'Earth')
+    coins = data.get('coins', 0)
+    main = data.get('main', 0)
+    rare = data.get('rare', 0)
+
+    # Якщо гравець нічого не заробив або ID загубився - просто ігноруємо
+    if not user_id or coins == 0:
+        return jsonify({'success': True})
+
+    # Формуємо красивий текст під кожну планету
+    if planet.lower() == 'earth': res_text = f"🪨 {main} Заліза\n⛽ {rare} Палива"
+    elif planet.lower() == 'moon': res_text = f"🌑 {main} Реголіту\n💨 {rare} Гелію-3"
+    elif planet.lower() == 'mars': res_text = f"💠 {main} Кремнію\n🔴 {rare} Оксиду"
+    elif planet.lower() == 'jupiter': res_text = f"💧 {main} Водню\n🎈 {rare} Гелію"
+    else: res_text = ""
+
+    text = f"🧪 **Звіт з лабораторії ({planet.upper()})**\n━━━━━━━━━━━━━━━━━━━━━\nВи успішно завершили дослідження!\n\n**Ваш заробіток:**\n🪙 {coins} Монет\n{res_text}"
+
+    # Відправляємо повідомлення напряму через Telegram API
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    requests.post(url, json={"chat_id": user_id, "text": text, "parse_mode": "Markdown"})
+
+    return jsonify({'success': True})
     
 @app.route('/api/investigate', methods=['POST'])
 def investigate():

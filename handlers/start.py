@@ -81,7 +81,7 @@ async def open_research_lab(message: types.Message):
     buttons = []
     # Генеруємо кнопку для кожної відкритої планети
     for planet in unlocked_planets:
-        url = f"{WEB_APP_URL}/lab.html?family_id={family_id}&planet={planet}"
+        url = f"{WEB_APP_URL}/lab.html?family_id={family_id}&planet={planet}&user_id={user_id}"
         buttons.append([InlineKeyboardButton(text=f"🔬 Лабораторія: {planet}", web_app=WebAppInfo(url=url))])
         
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)

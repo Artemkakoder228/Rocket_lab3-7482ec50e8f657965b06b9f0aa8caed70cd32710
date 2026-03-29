@@ -7,29 +7,73 @@
     <link rel="stylesheet" href="CSS/Earth.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        .header-title { text-align: center; font-size: 24px; font-weight: bold; color: white; text-shadow: 0 0 10px var(--accent-cyan); margin-top: 15px; }
-        .header-subtitle { text-align: center; color: #aaa; font-size: 14px; margin-bottom: 20px; }
+        .header-title { text-align: center; font-size: 26px; font-weight: bold; color: white; text-shadow: 0 0 10px var(--accent-cyan); margin-top: 15px; text-transform: uppercase; letter-spacing: 2px;}
+        .header-subtitle { text-align: center; color: #aaa; font-size: 14px; margin-bottom: 10px; }
         
-        .quiz-container { background: rgba(10, 15, 30, 0.85); border: 2px solid var(--accent-cyan); border-radius: 15px; padding: 20px; margin: 15px; text-align: center; backdrop-filter: blur(10px); }
+        .quiz-container { background: rgba(10, 15, 30, 0.85); border: 2px solid var(--accent-cyan); border-radius: 15px; padding: 20px; margin: 15px; text-align: center; backdrop-filter: blur(10px); transition: all 0.4s ease-in-out; }
         .question-text { font-size: 18px; margin-bottom: 20px; color: white; }
-        
-        .diff-btn { display: block; width: 100%; padding: 15px; margin-bottom: 15px; background: rgba(0, 0, 0, 0.5); border: 2px solid; border-radius: 10px; font-family: 'Courier New', monospace; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; color: white; text-align: left; }
-        .diff-btn:hover { filter: brightness(1.2); transform: scale(1.02); }
-        .diff-easy { border-color: #00ff64; box-shadow: inset 0 0 10px rgba(0, 255, 100, 0.2); }
-        .diff-med { border-color: #ffaa00; box-shadow: inset 0 0 10px rgba(255, 170, 0, 0.2); }
-        .diff-hard { border-color: #ff3232; box-shadow: inset 0 0 10px rgba(255, 50, 50, 0.2); }
-        
-        .option-btn { display: block; width: 100%; padding: 15px; margin-bottom: 10px; background: rgba(0, 243, 255, 0.1); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); border-radius: 10px; font-family: 'Courier New', monospace; font-size: 16px; cursor: pointer; transition: 0.2s; }
-        .option-btn.correct { background: rgba(0, 255, 100, 0.3); border-color: #00ff64; color: #00ff64; }
-        .option-btn.wrong { background: rgba(255, 50, 50, 0.3); border-color: #ff3232; color: #ff3232; }
         .reward-text { color: #ffaa00; font-weight: bold; margin-bottom: 15px; white-space: pre-line; }
+
+        /* === АНІМАЦІЇ КНОПОК === */
+        .diff-btn { display: block; width: 100%; padding: 15px; margin-bottom: 15px; background: rgba(0, 0, 0, 0.5); border: 2px solid; border-radius: 10px; font-family: 'Courier New', monospace; font-size: 16px; font-weight: bold; cursor: pointer; color: white; text-align: left; transition: all 0.3s ease-out; }
+        .diff-btn:hover { filter: brightness(1.3); transform: translateY(-3px); }
+        .diff-easy { border-color: #00ff64; box-shadow: inset 0 0 10px rgba(0, 255, 100, 0.2); text-shadow: 0 0 5px #00ff64; }
+        .diff-med { border-color: #ffaa00; box-shadow: inset 0 0 10px rgba(255, 170, 0, 0.2); text-shadow: 0 0 5px #ffaa00; }
+        .diff-hard { border-color: #ff3232; box-shadow: inset 0 0 10px rgba(255, 50, 50, 0.2); text-shadow: 0 0 5px #ff3232; }
+
+        @keyframes optionFadeIn { from { opacity: 0; transform: translateY(15px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .option-btn { display: block; width: 100%; padding: 15px; margin-bottom: 10px; background: rgba(0, 243, 255, 0.1); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); border-radius: 10px; font-family: 'Courier New', monospace; font-size: 16px; cursor: pointer; transition: all 0.25s ease-out; }
+        .option-btn:hover { background: rgba(0, 243, 255, 0.3); color: white; transform: scale(1.03); box-shadow: 0 0 15px rgba(0, 243, 255, 0.5); }
+        .option-btn.correct { background: rgba(0, 255, 100, 0.4); border-color: #00ff64; color: #00ff64; box-shadow: 0 0 20px rgba(0, 255, 100, 0.6) !important; }
+        .option-btn.wrong { background: rgba(255, 50, 50, 0.4); border-color: #ff3232; color: #ff3232; box-shadow: 0 0 20px rgba(255, 50, 50, 0.6) !important; }
+
+        .action-btn { display: block; width: 100%; padding: 15px; margin-top: 20px; background: rgba(0, 243, 255, 0.05); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); border-radius: 10px; font-family: 'Courier New', monospace; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 0 10px rgba(0, 243, 255, 0.1); }
+        .action-btn:hover { background: var(--accent-cyan); color: #000; box-shadow: 0 0 20px var(--accent-cyan); transform: scale(1.02); }
+        .leave-btn { border-color: #ffaa00; color: #ffaa00; box-shadow: 0 0 10px rgba(255, 170, 0, 0.1); background: rgba(255, 170, 0, 0.05); margin: 20px auto; width: calc(100% - 30px); }
+        .leave-btn:hover { background: #ffaa00; color: #000; box-shadow: 0 0 25px #ffaa00; }
+
+        /* ========================================= */
+        /* === ВЕЛИКІ ВІЗУАЛЬНІ АНІМАЦІЇ === */
+        /* ========================================= */
+        .visual-container {
+            height: 140px; display: flex; justify-content: center; align-items: center; 
+            position: relative; margin-bottom: 20px; margin-top: 15px;
+        }
+        
+        /* 1. ЗЕМЛЯ (Орбіта) */
+        .anim-earth { font-size: 90px; z-index: 2; position: relative; filter: drop-shadow(0 0 15px rgba(0, 150, 255, 0.5)); }
+        .anim-satellite { font-size: 28px; position: absolute; z-index: 3;
+            animation: orbitAnim 4s linear infinite; transform-origin: center; 
+        }
+        @keyframes orbitAnim { 
+            0% { transform: rotate(0deg) translateX(70px) rotate(0deg); } 
+            100% { transform: rotate(360deg) translateX(70px) rotate(-360deg); } 
+        }
+
+        /* 2. МІСЯЦЬ (Сяйво та Зірки) */
+        .anim-moon { font-size: 90px; z-index: 2; position: relative; filter: drop-shadow(0 0 20px rgba(200, 200, 255, 0.8)); }
+        .anim-star { position: absolute; font-size: 20px; animation: twinkleAnim 1.5s infinite alternate; }
+        @keyframes twinkleAnim { 0% { opacity: 0.2; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1.3); filter: drop-shadow(0 0 5px white); } }
+
+        /* 3. МАРС (Радар / Сканер) */
+        .anim-mars { font-size: 90px; z-index: 2; position: relative; filter: drop-shadow(0 0 15px rgba(255, 50, 50, 0.6)); }
+        .anim-ring { position: absolute; width: 90px; height: 90px; border: 2px solid rgba(255, 50, 50, 0.8); border-radius: 50%; z-index: 1; animation: ringPulseAnim 2s linear infinite; }
+        .anim-ring:nth-child(2) { animation-delay: 1s; }
+        @keyframes ringPulseAnim { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(2.3); opacity: 0; } }
+
+        /* 4. ЮПІТЕР (Блискавки) */
+        .anim-jupiter { font-size: 100px; z-index: 2; position: relative; filter: drop-shadow(0 0 15px rgba(255, 200, 100, 0.5)); }
+        .anim-spark { position: absolute; font-size: 35px; z-index: 3; opacity: 0; animation: flashAnim 2s infinite; }
+        @keyframes flashAnim { 0%, 90% { opacity: 0; } 92% { opacity: 1; filter: drop-shadow(0 0 10px #00f3ff); transform: scale(1.2) rotate(15deg); } 95% { opacity: 0; } 97% { opacity: 1; } 100% { opacity: 0; } }
     </style>
 </head>
 <body>
     <div id="space-container"></div>
     
-    <div id="labTitle" class="header-title">🔬 Лабораторія</div>
+    <div id="labTitle" class="header-title">ЛАБОРАТОРІЯ</div>
     <div id="labSubtitle" class="header-subtitle">Оберіть рівень досліджень</div>
+
+    <div id="planetVisual" class="visual-container"></div>
 
     <div class="quiz-container" id="menuBox">
         <button class="diff-btn diff-easy" onclick="startQuiz('easy')">🟢 Базовий аналіз<br><span style="font-size:12px; color:#aaa; font-weight:normal;">Малий ризик, стабільна нагорода</span></button>
@@ -37,45 +81,72 @@
         <button class="diff-btn diff-hard" onclick="startQuiz('hard')">🔴 Критичний експеримент<br><span style="font-size:12px; color:#aaa; font-weight:normal;">Високий ризик, максимальний прибуток</span></button>
     </div>
 
-    <div class="quiz-container" id="quizBox" style="display: none;">
+    <div class="quiz-container" id="quizBox" style="display: none; opacity: 0;">
         <h3 class="reward-text" id="rewardDisplay">Завантаження...</h3>
         <div class="question-text" id="questionText">Встановлюємо зв'язок із сервером...</div>
         <div id="optionsContainer"></div>
-        <button class="nav-btn" onclick="showMenu()" style="margin-top: 20px; width: 100%; background: #444;">↩ Змінити складність</button>
+        <button class="action-btn" onclick="showMenu()">↩ Змінити складність</button>
     </div>
+
+    <button class="action-btn leave-btn" onclick="leaveLab()">💰 Зібрати ресурси та вийти</button>
 
     <script>
         window.Telegram.WebApp.expand();
         let currentQuizId = null;
         let currentDiff = 'easy';
         
+        let sessionCoins = 0;
+        let sessionMain = 0;
+        let sessionRare = 0;
+        
         const urlParams = new URLSearchParams(window.location.search);
         const familyId = urlParams.get('family_id');
-        const planet = urlParams.get('planet') || 'Earth'; 
+        const planet = (urlParams.get('planet') || 'Earth').toLowerCase(); 
+        const userId = urlParams.get('user_id');
 
-        // Унікальні назви для планет
-        const labNames = {
-            'earth': '🌍 Лабораторія "Орбіта"',
-            'moon': '🌑 База "Місячне Сяйво"',
-            'mars': '🔴 Науковий Центр "Арес"',
-            'jupiter': '🪐 Станція "Галілео"'
-        };
-        document.getElementById('labTitle').innerText = labNames[planet.toLowerCase()] || `🔬 Лабораторія: ${planet}`;
+        // === ОНОВЛЕНА ГЕНЕРАЦІЯ ВІЗУАЛУ ТА НАЗВ ===
+        // Видалили смайлики з назв лабораторій
+        const labNames = { 'earth': 'ОРБІТА', 'moon': 'МІСЯЧНЕ СЯЙВО', 'mars': 'АРЕС', 'jupiter': 'ГАЛІЛЕО' };
+        document.getElementById('labTitle').innerText = `ЛАБОРАТОРІЯ "${labNames[planet] || planet.toUpperCase()}"`;
+
+        const visualBox = document.getElementById('planetVisual');
+        if (planet === 'earth') {
+            visualBox.innerHTML = `<div class="anim-earth">🌍</div><div class="anim-satellite">🛰️</div>`;
+        } else if (planet === 'moon') {
+            visualBox.innerHTML = `<div class="anim-moon">🌑</div>
+                                   <div class="anim-star" style="top:20px; left:25%;">✨</div>
+                                   <div class="anim-star" style="top:100px; left:65%; animation-delay: 0.5s;">✨</div>
+                                   <div class="anim-star" style="top:40px; left:75%; animation-delay: 1s;">✨</div>`;
+        } else if (planet === 'mars') {
+            visualBox.innerHTML = `<div class="anim-ring"></div><div class="anim-ring"></div>
+                                   <div class="anim-mars">🔴</div>`;
+        } else if (planet === 'jupiter') {
+            visualBox.innerHTML = `<div class="anim-jupiter">🪐</div>
+                                   <div class="anim-spark" style="top:25px; left:30%;">⚡</div>
+                                   <div class="anim-spark" style="top:90px; left:60%; animation-delay: 1s;">⚡</div>`;
+        }
 
         function showMenu() {
-            document.getElementById('menuBox').style.display = 'block';
-            document.getElementById('quizBox').style.display = 'none';
-            document.getElementById('labSubtitle').innerText = "Оберіть рівень досліджень";
+            const menu = document.getElementById('menuBox');
+            const quiz = document.getElementById('quizBox');
+            quiz.style.opacity = '0';
+            setTimeout(() => {
+                quiz.style.display = 'none';
+                menu.style.display = 'block';
+                document.getElementById('labSubtitle').innerText = "Оберіть рівень досліджень";
+            }, 400);
         }
 
         function startQuiz(difficulty) {
             currentDiff = difficulty;
-            document.getElementById('menuBox').style.display = 'none';
-            document.getElementById('quizBox').style.display = 'block';
+            const menu = document.getElementById('menuBox');
+            const quiz = document.getElementById('quizBox');
+            menu.style.display = 'none';
+            quiz.style.display = 'block';
+            setTimeout(() => quiz.style.opacity = '1', 10);
             
             let diffName = difficulty === 'easy' ? '🟢 Базовий аналіз' : difficulty === 'medium' ? '🟡 Глибоке вивчення' : '🔴 Критичний експеримент';
-            document.getElementById('labSubtitle').innerText = `Поточний процес: ${diffName}`;
-            
+            document.getElementById('labSubtitle').innerText = `Процес: ${diffName}`;
             loadQuiz();
         }
 
@@ -91,7 +162,6 @@
                     document.getElementById('questionText').innerText = errData.error || "Питань цієї складності поки немає!";
                     return;
                 }
-                
                 const data = await res.json();
                 currentQuizId = data.id;
                 
@@ -104,14 +174,15 @@
                     btn.className = 'option-btn';
                     btn.innerText = opt;
                     btn.onclick = () => submitAnswer(index, btn);
+                    btn.style.animation = `optionFadeIn 0.4s ease-out ${index * 0.1}s both`;
                     optsContainer.appendChild(btn);
                 });
             } catch (e) { console.error(e); }
         }
 
         async function submitAnswer(selectedIndex, btnElement) {
-            const allBtns = document.querySelectorAll('.option-btn');
-            allBtns.forEach(b => b.disabled = true);
+            btnElement.style.animation = 'none';
+            document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
 
             const res = await fetch('/api/quiz/answer', {
                 method: 'POST',
@@ -123,15 +194,32 @@
             if (result.correct) {
                 btnElement.classList.add('correct');
                 document.getElementById('questionText').innerText = `✅ Успіх! Ваш здобуток:\n${result.reward_text}`;
+                
+                sessionCoins += (result.reward_coins || 0);
+                sessionMain += (result.res_main || 0);
+                sessionRare += (result.res_rare || 0);
+
                 if(window.Telegram.WebApp.HapticFeedback) window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
             } else {
                 btnElement.classList.add('wrong');
-                if (result.correct_index !== undefined) allBtns[result.correct_index].classList.add('correct');
+                if (result.correct_index !== undefined) document.querySelectorAll('.option-btn')[result.correct_index].classList.add('correct');
                 document.getElementById('questionText').innerText = `❌ Експеримент провалено!`;
                 if(window.Telegram.WebApp.HapticFeedback) window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
             }
+            setTimeout(loadQuiz, 2500);
+        }
 
-            setTimeout(loadQuiz, 3000);
+        async function leaveLab() {
+            if (sessionCoins > 0 && userId) {
+                try {
+                    await fetch('/api/quiz/leave', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: userId, planet: planet, coins: sessionCoins, main: sessionMain, rare: sessionRare })
+                    });
+                } catch (e) { console.error("Помилка збереження", e); }
+            }
+            window.Telegram.WebApp.close();
         }
     </script>
 </body>

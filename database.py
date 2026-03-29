@@ -120,7 +120,7 @@ class Database:
             """)
 
             # Перестворюємо таблицю з колонкою planet
-            self.cursor.execute("DROP TABLE IF EXISTS quizzes")
+            # self.cursor.execute("DROP TABLE IF EXISTS quizzes")
             self.cursor.execute("""
                 CREATE TABLE quizzes (
                     id SERIAL PRIMARY KEY,
