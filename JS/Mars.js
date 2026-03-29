@@ -199,20 +199,21 @@ function initInteractions() {
 }
 
 // --- НАВІГАЦІЯ ---
+// --- НАВІГАЦІЯ ---
 function initNavigation() {
     const planets = document.querySelectorAll('.planet-item');
-    // Отримуємо поточні параметри, щоб не втратити family_id при кліку
     const searchParams = window.location.search; 
 
     planets.forEach(planet => {
         planet.addEventListener('click', () => {
-            // Перевіряємо, чи має кнопка клас заблокованої планети
+            // 1. ПЕРЕВІРКА НА БЛОКУВАННЯ
             if (planet.classList.contains('locked-planet')) {
                 alert("❌ Ця планета ще не досліджена! Відкрийте її через головне меню бота.");
                 return; // Зупиняємо перехід
             }
 
-            const planetName = planet.querySelector('.planet-name').innerText.trim();
+            // 2. ОТРИМАННЯ НАЗВИ ТА ПЕРЕХІД
+            const nameElement = planet.querySelector('.planet-name');
             if (!nameElement) return;
 
             const name = nameElement.innerText.trim().toUpperCase();
@@ -330,6 +331,15 @@ async function updateMarsResources() {
         }
 
         // --- БЛОКУВАННЯ НЕДОСЛІДЖЕНИХ ПЛАНЕТ ---
+        if (data.modules) {
+            userOwnedModules = data.modules; 
+            
+            if (selectedModuleKey) {
+                refreshInfoPanel(selectedModuleKey);
+            }
+        }
+
+        // --- БЛОКУВАННЯ НЕДОСЛІДЖЕНИХ ПЛАНЕТ ---
         if (data.unlocked_planets) {
             const unlockedLower = data.unlocked_planets.map(p => p.toLowerCase());
             const planetItems = document.querySelectorAll('.planet-item');
@@ -338,7 +348,7 @@ async function updateMarsResources() {
                 const planetNameSpan = item.querySelector('.planet-name');
                 if (planetNameSpan) {
                     const pName = planetNameSpan.innerText.trim().toLowerCase();
-                    // Якщо планети немає в списку відкритих і це не поточна планета
+                    // Якщо планети немає в списку відкритих
                     if (!unlockedLower.includes(pName)) {
                         item.classList.add('locked-planet');
                     }
