@@ -147,11 +147,19 @@ function renderModules(modules) {
         card.className = 'mod-card';
 
         // Вибираємо картинку
-        let imgPath = 'images/modules/placeholder.png';
+        // Вибираємо картинку
+        let imgPath = 'images/Logo_for_site.png'; // Краще зробити логотипом за замовчуванням, якщо картинки немає
+
         if (mod.type === 'nose') imgPath = 'images/Nose.png';
-        if (mod.type === 'body') imgPath = 'images/Korpus.png';
-        if (mod.type === 'engine') imgPath = 'images/Turbina.png';
-        if (mod.type === 'fins') imgPath = 'images/Stabilizator.png';
+        else if (mod.type === 'body') imgPath = 'images/Korpus.png';
+        else if (mod.type === 'engine') imgPath = 'images/Turbina.png';
+        else if (mod.type === 'fins') imgPath = 'images/Stabilizator.png';
+        // --- Додані нові типи модулів з server.py ---
+        else if (mod.type === 'solar') imgPath = 'images/Bataries.png';
+        else if (mod.type === 'weapons') imgPath = 'images/Blasters.png';
+        else if (mod.type === 'booster') imgPath = 'images/Turbina.png'; // Поки використовуємо турбіну, можете намалювати окрему
+        else if (mod.type === 'cargo') imgPath = 'images/Titan.png';     // Використовуємо іншу текстуру корпусу
+        else if (mod.type === 'cabin') imgPath = 'images/Korpus.png';    // Або намалюйте нову картинку Кабіни
 
         card.innerHTML = `
             <div class="mod-img-box">

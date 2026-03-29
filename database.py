@@ -184,11 +184,11 @@ class Database:
         with self.connection:
             self.cursor.execute("""
                 UPDATE families SET 
-                balance = balance + 50000,
-                res_iron = res_iron + 1000, res_fuel = res_fuel + 1000,
-                res_regolith = res_regolith + 1000, res_he3 = res_he3 + 1000,
-                res_silicon = res_silicon + 1000, res_oxide = res_oxide + 1000,
-                res_hydrogen = res_hydrogen + 1000, res_helium = res_helium + 1000
+                balance = balance + 100000,
+                res_iron = res_iron + 100000, res_fuel = res_fuel + 100000,
+                res_regolith = res_regolith + 100000, res_he3 = res_he3 + 100000,
+                res_silicon = res_silicon + 100000, res_oxide = res_oxide + 100000,
+                res_hydrogen = res_hydrogen + 100000, res_helium = res_helium + 100000
                 WHERE id = %s
             """, (family_id,))
 
