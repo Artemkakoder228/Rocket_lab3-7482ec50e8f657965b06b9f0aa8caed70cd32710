@@ -3,67 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Дослідницька Лабораторія</title>
+    <title>Дослідницький Центр</title>
     <link rel="stylesheet" href="CSS/Earth.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        .quiz-container {
-            background: rgba(10, 15, 30, 0.85);
-            border: 2px solid var(--accent-cyan);
-            border-radius: 15px;
-            padding: 20px;
-            margin: 20px;
-            text-align: center;
-            backdrop-filter: blur(10px);
-        }
-        .question-text { font-size: 20px; margin-bottom: 20px; color: white; }
-        .option-btn {
-            display: block; width: 100%; padding: 15px; margin-bottom: 10px;
-            background: rgba(0, 243, 255, 0.1); border: 1px solid var(--accent-cyan);
-            color: var(--accent-cyan); border-radius: 10px; font-family: 'Courier New', monospace;
-            font-size: 16px; cursor: pointer; transition: 0.2s;
-        }
-        .option-btn:hover { background: rgba(0, 243, 255, 0.3); }
+        .header-title { text-align: center; font-size: 24px; font-weight: bold; color: white; text-shadow: 0 0 10px var(--accent-cyan); margin-top: 15px; }
+        .header-subtitle { text-align: center; color: #aaa; font-size: 14px; margin-bottom: 20px; }
+        
+        .quiz-container { background: rgba(10, 15, 30, 0.85); border: 2px solid var(--accent-cyan); border-radius: 15px; padding: 20px; margin: 15px; text-align: center; backdrop-filter: blur(10px); }
+        .question-text { font-size: 18px; margin-bottom: 20px; color: white; }
+        
+        .diff-btn { display: block; width: 100%; padding: 15px; margin-bottom: 15px; background: rgba(0, 0, 0, 0.5); border: 2px solid; border-radius: 10px; font-family: 'Courier New', monospace; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; color: white; text-align: left; }
+        .diff-btn:hover { filter: brightness(1.2); transform: scale(1.02); }
+        .diff-easy { border-color: #00ff64; box-shadow: inset 0 0 10px rgba(0, 255, 100, 0.2); }
+        .diff-med { border-color: #ffaa00; box-shadow: inset 0 0 10px rgba(255, 170, 0, 0.2); }
+        .diff-hard { border-color: #ff3232; box-shadow: inset 0 0 10px rgba(255, 50, 50, 0.2); }
+        
+        .option-btn { display: block; width: 100%; padding: 15px; margin-bottom: 10px; background: rgba(0, 243, 255, 0.1); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); border-radius: 10px; font-family: 'Courier New', monospace; font-size: 16px; cursor: pointer; transition: 0.2s; }
         .option-btn.correct { background: rgba(0, 255, 100, 0.3); border-color: #00ff64; color: #00ff64; }
         .option-btn.wrong { background: rgba(255, 50, 50, 0.3); border-color: #ff3232; color: #ff3232; }
-        .reward-text { color: #ffaa00; font-weight: bold; margin-bottom: 15px; }
+        .reward-text { color: #ffaa00; font-weight: bold; margin-bottom: 15px; white-space: pre-line; }
     </style>
 </head>
 <body>
     <div id="space-container"></div>
-    <div class="header" style="justify-content: center;"><div class="logo">🔬 <span>ЛАБОРАТОРІЯ</span></div></div>
+    
+    <div id="labTitle" class="header-title">🔬 Лабораторія</div>
+    <div id="labSubtitle" class="header-subtitle">Оберіть рівень досліджень</div>
 
-    <div class="quiz-container" id="quizBox">
+    <div class="quiz-container" id="menuBox">
+        <button class="diff-btn diff-easy" onclick="startQuiz('easy')">🟢 Базовий аналіз<br><span style="font-size:12px; color:#aaa; font-weight:normal;">Малий ризик, стабільна нагорода</span></button>
+        <button class="diff-btn diff-med" onclick="startQuiz('medium')">🟡 Глибоке вивчення<br><span style="font-size:12px; color:#aaa; font-weight:normal;">Середній ризик, хороша нагорода</span></button>
+        <button class="diff-btn diff-hard" onclick="startQuiz('hard')">🔴 Критичний експеримент<br><span style="font-size:12px; color:#aaa; font-weight:normal;">Високий ризик, максимальний прибуток</span></button>
+    </div>
+
+    <div class="quiz-container" id="quizBox" style="display: none;">
         <h3 class="reward-text" id="rewardDisplay">Завантаження...</h3>
         <div class="question-text" id="questionText">Встановлюємо зв'язок із сервером...</div>
         <div id="optionsContainer"></div>
+        <button class="nav-btn" onclick="showMenu()" style="margin-top: 20px; width: 100%; background: #444;">↩ Змінити складність</button>
     </div>
-
-    <button class="nav-btn" onclick="window.history.back()" style="margin: 20px;">Повернутися назад</button>
 
     <script>
         window.Telegram.WebApp.expand();
         let currentQuizId = null;
+        let currentDiff = 'easy';
+        
         const urlParams = new URLSearchParams(window.location.search);
         const familyId = urlParams.get('family_id');
+        const planet = urlParams.get('planet') || 'Earth'; 
+
+        // Унікальні назви для планет
+        const labNames = {
+            'earth': '🌍 Лабораторія "Орбіта"',
+            'moon': '🌑 База "Місячне Сяйво"',
+            'mars': '🔴 Науковий Центр "Арес"',
+            'jupiter': '🪐 Станція "Галілео"'
+        };
+        document.getElementById('labTitle').innerText = labNames[planet.toLowerCase()] || `🔬 Лабораторія: ${planet}`;
+
+        function showMenu() {
+            document.getElementById('menuBox').style.display = 'block';
+            document.getElementById('quizBox').style.display = 'none';
+            document.getElementById('labSubtitle').innerText = "Оберіть рівень досліджень";
+        }
+
+        function startQuiz(difficulty) {
+            currentDiff = difficulty;
+            document.getElementById('menuBox').style.display = 'none';
+            document.getElementById('quizBox').style.display = 'block';
+            
+            let diffName = difficulty === 'easy' ? '🟢 Базовий аналіз' : difficulty === 'medium' ? '🟡 Глибоке вивчення' : '🔴 Критичний експеримент';
+            document.getElementById('labSubtitle').innerText = `Поточний процес: ${diffName}`;
+            
+            loadQuiz();
+        }
 
         async function loadQuiz() {
+            document.getElementById('questionText').innerText = "Отримуємо дані...";
+            document.getElementById('optionsContainer').innerHTML = '';
+            document.getElementById('rewardDisplay').innerText = '';
+
             try {
-                const res = await fetch('/api/quiz');
+                const res = await fetch(`/api/quiz?family_id=${familyId}&planet=${planet}&difficulty=${currentDiff}`);
                 if (!res.ok) {
-                    document.getElementById('questionText').innerText = "Питань поки немає. Адміністратор ще працює над цим!";
-                    document.getElementById('rewardDisplay').innerText = "";
+                    const errData = await res.json().catch(() => ({}));
+                    document.getElementById('questionText').innerText = errData.error || "Питань цієї складності поки немає!";
                     return;
                 }
+                
                 const data = await res.json();
                 currentQuizId = data.id;
                 
-                document.getElementById('rewardDisplay').innerText = `Нагорода: ${data.reward} 🪙`;
+                document.getElementById('rewardDisplay').innerText = `Очікувана нагорода:\n${data.reward_text}`;
                 document.getElementById('questionText').innerText = data.question;
                 
                 const optsContainer = document.getElementById('optionsContainer');
-                optsContainer.innerHTML = '';
-                
                 data.options.forEach((opt, index) => {
                     const btn = document.createElement('button');
                     btn.className = 'option-btn';
@@ -75,7 +110,6 @@
         }
 
         async function submitAnswer(selectedIndex, btnElement) {
-            // Блокуємо всі кнопки
             const allBtns = document.querySelectorAll('.option-btn');
             allBtns.forEach(b => b.disabled = true);
 
@@ -88,20 +122,17 @@
 
             if (result.correct) {
                 btnElement.classList.add('correct');
-                document.getElementById('questionText').innerText = `✅ Правильно! Ви отримали ${result.reward} 🪙`;
+                document.getElementById('questionText').innerText = `✅ Успіх! Ваш здобуток:\n${result.reward_text}`;
                 if(window.Telegram.WebApp.HapticFeedback) window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
             } else {
                 btnElement.classList.add('wrong');
-                allBtns[result.correct_index].classList.add('correct'); // Показуємо правильну
-                document.getElementById('questionText').innerText = `❌ Неправильно! Спробуйте наступного разу.`;
+                if (result.correct_index !== undefined) allBtns[result.correct_index].classList.add('correct');
+                document.getElementById('questionText').innerText = `❌ Експеримент провалено!`;
                 if(window.Telegram.WebApp.HapticFeedback) window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
             }
 
-            // Завантажуємо нове питання через 3 секунди
             setTimeout(loadQuiz, 3000);
         }
-
-        loadQuiz();
     </script>
 </body>
 </html>

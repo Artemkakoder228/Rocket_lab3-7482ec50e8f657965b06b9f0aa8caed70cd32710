@@ -255,41 +255,66 @@ def buy_shop_item():
     
 @app.route('/api/quiz', methods=['GET'])
 def get_quiz():
-    quiz = db.get_random_quiz()
-    if not quiz:
-        return jsonify({'error': 'Питань поки немає'}), 404
+    family_id = request.args.get('family_id')
+    planet = request.args.get('planet', 'Earth')
+    difficulty = request.args.get('difficulty', 'easy') # Читаємо складність
     
-    # quiz = (id, question, opt1, opt2, opt3, opt4, correct_opt, reward)
+    if not family_id: return jsonify({'error': 'Не вказано ID сім\'ї'}), 400
+
+    unlocked = db.get_unlocked_planets(family_id)
+    if planet not in unlocked: return jsonify({'error': '❌ Ця планета ще не досліджена!'}), 403
+
+    quiz = db.get_random_quiz(planet, difficulty)
+    if not quiz:
+        return jsonify({'error': f'Питань ({difficulty}) для бази {planet} поки немає'}), 404
+    
+    reward_coins = quiz[8] 
+    res_main = int(reward_coins * 0.05)
+    res_rare = int(reward_coins * 0.02)
+    
+    # Формуємо іконки ресурсів під планету
+    if planet.lower() == 'earth': res_text = f"{res_main} 🪨 | {res_rare} ⛽"
+    elif planet.lower() == 'moon': res_text = f"{res_main} 🌑 | {res_rare} 💨"
+    elif planet.lower() == 'mars': res_text = f"{res_main} 💠 | {res_rare} 🔴"
+    elif planet.lower() == 'jupiter': res_text = f"{res_main} 💧 | {res_rare} 🎈"
+    else: res_text = ""
+    
     return jsonify({
-        'id': quiz[0],
-        'question': quiz[1],
-        'options': [quiz[2], quiz[3], quiz[4], quiz[5]],
-        'reward': quiz[7]
+        'id': quiz[0], 'planet': quiz[1], 'question': quiz[2],
+        'options': [quiz[3], quiz[4], quiz[5], quiz[6]],
+        'reward_text': f"{reward_coins} 🪙 | {res_text}"
     })
 
+# В роуті /api/quiz/answer потрібно змінити індекси:
 @app.route('/api/quiz/answer', methods=['POST'])
 def submit_quiz_answer():
     data = request.json
-    family_id = data.get('family_id')
-    quiz_id = data.get('quiz_id')
-    user_answer_index = data.get('answer') # 0, 1, 2 або 3
+    family_id, quiz_id, user_answer_index = data.get('family_id'), data.get('quiz_id'), data.get('answer')
     
     quiz = db.get_quiz_by_id(quiz_id)
-    if not quiz:
-        return jsonify({'success': False, 'message': 'Питання не знайдено'})
+    if not quiz: return jsonify({'success': False, 'message': 'Питання не знайдено'})
     
-    # У базі правильна відповідь збережена як 1-4, а індекси масиву 0-3
-    correct_index = quiz[6] - 1 
+    correct_index = quiz[7] - 1 
     
     if user_answer_index == correct_index:
-        # Правильно! Видаємо нагороду
-        reward = quiz[7]
-        db.give_quiz_reward(family_id, reward)
-        return jsonify({'success': True, 'correct': True, 'reward': reward})
+        reward_coins = quiz[8]
+        planet = quiz[1]
+        db.give_quiz_reward(family_id, reward_coins, planet)
+        
+        res_main = int(reward_coins * 0.05)
+        res_rare = int(reward_coins * 0.02)
+        
+        # Текст перемоги під планету
+        if planet.lower() == 'earth': res_text = f"{res_main} Заліза та {res_rare} Палива"
+        elif planet.lower() == 'moon': res_text = f"{res_main} Реголіту та {res_rare} Гелію-3"
+        elif planet.lower() == 'mars': res_text = f"{res_main} Кремнію та {res_rare} Оксиду"
+        elif planet.lower() == 'jupiter': res_text = f"{res_main} Водню та {res_rare} Гелію"
+        else: res_text = ""
+        
+        return jsonify({'success': True, 'correct': True, 'reward_text': f"{reward_coins} 🪙, {res_text}!"})
     else:
-        # Неправильно
         return jsonify({'success': True, 'correct': False, 'correct_index': correct_index})
-
+    
 @app.route('/api/investigate', methods=['POST'])
 def investigate():
     try:

@@ -119,9 +119,12 @@ class Database:
                 )
             """)
 
+            # Перестворюємо таблицю з колонкою planet
+            self.cursor.execute("DROP TABLE IF EXISTS quizzes")
             self.cursor.execute("""
-                CREATE TABLE IF NOT EXISTS quizzes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                CREATE TABLE quizzes (
+                    id SERIAL PRIMARY KEY,
+                    planet TEXT DEFAULT 'Earth',
                     question TEXT,
                     opt1 TEXT,
                     opt2 TEXT,
@@ -617,22 +620,52 @@ class Database:
             return self.cursor.fetchone()
     
     # --- ДОСЛІДНИЦЬКА ЛАБОРАТОРІЯ ---
-    def add_quiz(self, question, opt1, opt2, opt3, opt4, correct_opt, reward):
+    def add_quiz(self, planet, question, opt1, opt2, opt3, opt4, correct_opt, reward):
         with self.connection:
             self.cursor.execute("""
-                INSERT INTO quizzes (question, opt1, opt2, opt3, opt4, correct_opt, reward)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (question, opt1, opt2, opt3, opt4, correct_opt, reward))
+                INSERT INTO quizzes (planet, question, opt1, opt2, opt3, opt4, correct_opt, reward)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (planet, question, opt1, opt2, opt3, opt4, correct_opt, reward))
 
-    def get_random_quiz(self):
-        # Беремо одне випадкове питання
-        self.cursor.execute("SELECT * FROM quizzes ORDER BY RANDOM() LIMIT 1")
+    def get_random_quiz(self, planet, difficulty):
+        # Визначаємо складність на основі нагороди
+        if difficulty == 'easy':
+            condition = "reward <= 1000"
+        elif difficulty == 'medium':
+            condition = "reward > 1000 AND reward <= 2000"
+        else: # hard
+            condition = "reward > 2000"
+            
+        self.cursor.execute(f"SELECT * FROM quizzes WHERE planet = %s AND {condition} ORDER BY RANDOM() LIMIT 1", (planet,))
         return self.cursor.fetchone()
 
     def get_quiz_by_id(self, quiz_id):
-        self.cursor.execute("SELECT * FROM quizzes WHERE id = ?", (quiz_id,))
+        self.cursor.execute("SELECT * FROM quizzes WHERE id = %s", (quiz_id,))
         return self.cursor.fetchone()
 
-    def give_quiz_reward(self, family_id, reward):
+    def give_quiz_reward(self, family_id, reward_coins, planet):
+        # Зменшені ресурси: 5% (основний) та 2% (рідкісний) від суми монет
+        res_main = int(reward_coins * 0.05)
+        res_rare = int(reward_coins * 0.02)
+        
+        query = "UPDATE families SET balance = balance + %s, "
+        params = [reward_coins]
+        
+        # Видаємо ресурси залежно від планети
+        if planet.lower() == 'earth':
+            query += "res_iron = res_iron + %s, res_fuel = res_fuel + %s"
+        elif planet.lower() == 'moon':
+            query += "res_regolith = res_regolith + %s, res_he3 = res_he3 + %s"
+        elif planet.lower() == 'mars':
+            query += "res_silicon = res_silicon + %s, res_oxide = res_oxide + %s"
+        elif planet.lower() == 'jupiter':
+            query += "res_hydrogen = res_hydrogen + %s, res_helium = res_helium + %s"
+        else:
+            query += "res_iron = res_iron + %s, res_fuel = res_fuel + %s" # Запасний варіант
+            
+        params.extend([res_main, res_rare])
+        query += " WHERE id = %s"
+        params.append(family_id)
+        
         with self.connection:
-            self.cursor.execute("UPDATE families SET balance = balance + ? WHERE id = ?", (reward, family_id))
+            self.cursor.execute(query, tuple(params))

@@ -2,6 +2,9 @@ from aiogram import Router, types, F
 from aiogram.filters import Command
 from database import Database
 from keyboards import get_main_kb_no_family, get_main_kb_with_family
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types.web_app_info import WebAppInfo
+from config import WEB_APP_URL
 
 router = Router()
 db = Database('space.db')
@@ -60,3 +63,33 @@ async def cmd_help(message: types.Message):
     )
     # Тут використовуємо answer, бо це довідка, яку користувач хоче бачити окремо
     await message.answer(text, parse_mode="Markdown")
+
+# Переконайтеся, що імпортували db: from database import db (або Database)
+
+@router.message(F.text == "🔬 Лабораторія")
+async def open_research_lab(message: types.Message):
+    user_id = message.from_user.id
+    family_id = db.get_user_family(user_id)
+    
+    if not family_id:
+        await message.answer("❌ Для доступу до лабораторії потрібна сім'я!")
+        return
+        
+    # Отримуємо список відкритих планет (наприклад: ['Earth', 'Mars'])
+    unlocked_planets = db.get_unlocked_planets(family_id)
+    
+    buttons = []
+    # Генеруємо кнопку для кожної відкритої планети
+    for planet in unlocked_planets:
+        url = f"{WEB_APP_URL}/lab.html?family_id={family_id}&planet={planet}"
+        buttons.append([InlineKeyboardButton(text=f"🔬 Лабораторія: {planet}", web_app=WebAppInfo(url=url))])
+        
+    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+    
+    await message.answer(
+        "🔬 **ДОСЛІДНИЦЬКИЙ ЦЕНТР**\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n"
+        "Оберіть філію лабораторії. Доступні лише ті планети, які ви вже дослідили:", 
+        parse_mode="Markdown", 
+        reply_markup=kb
+    )
