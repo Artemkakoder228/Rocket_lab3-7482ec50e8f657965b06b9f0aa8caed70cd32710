@@ -457,6 +457,122 @@ def investigate():
     except Exception as e:
         print(f"CRITICAL SERVER ERROR: {e}")
         return jsonify({'error': 'Внутрішня помилка сервера'}), 500
+    
+@app.route('/api/raid/targets', methods=['GET'])
+def get_raid_targets():
+    family_id = request.args.get('family_id')
+    if not family_id: return jsonify({'error': 'No family_id'})
+    
+    try:
+        # 1. Отримуємо інфо про атакуючого (на якій планеті він зараз)
+        my_info = db.get_family_resources(family_id)
+        if not my_info: return jsonify({'error': 'Family not found'})
+        my_planet = my_info[11] 
+        
+        # Вираховуємо бойову міць атакуючого
+        my_stats = db.get_ship_total_stats(family_id)
+        my_power = sum(my_stats.values())
+        
+        # 2. Шукаємо інші колонії на ЦІЙ ЖЕ планеті
+        with db.connection:
+            # Беремо тих, хто не під щитом і не є нашою сім'єю
+            db.cursor.execute("""
+                SELECT id, name, balance 
+                FROM families 
+                WHERE current_planet = %s AND id != %s
+                  AND (shield_until IS NULL OR shield_until <= CURRENT_TIMESTAMP)
+            """, (my_planet, family_id))
+            potential_targets = db.cursor.fetchall()
+        
+        targets = []
+        for t in potential_targets:
+            t_id = t[0]
+            t_stats = db.get_ship_total_stats(t_id)
+            t_power = sum(t_stats.values())
+            
+            # 3. Фільтр "подібних характеристик"
+            # Для балансу показуємо ворогів, сила яких відрізняється не більше ніж на 50% 
+            # (або якщо міць 0, то показуємо всіх початківців)
+            if my_power == 0 or (abs(my_power - t_power) / max(my_power, 1)) < 0.5:
+                targets.append({
+                    'id': t_id,
+                    'name': t[1],
+                    'power': t_power,
+                    'loot_coins': int(t[2] * 0.1) # Показуємо, що можна вкрасти ~10% їхнього балансу
+                })
+                
+        # Перемішуємо і віддаємо максимум 5 цілей для радару
+        random.shuffle(targets)
+        return jsonify({
+            'planet': my_planet, 
+            'my_power': my_power, 
+            'targets': targets[:5]
+        })
+    except Exception as e:
+        print("RAID GET ERROR:", e)
+        return jsonify({'error': 'Server error'}), 500
+
+
+@app.route('/api/raid/attack', methods=['POST'])
+def attack_target():
+    data = request.json
+    attacker_id = data.get('family_id')
+    user_id = data.get('user_id')
+    target_id = data.get('target_id')
+    
+    try:
+        # 1. Отримуємо бойову міць обох сторін
+        my_stats = db.get_ship_total_stats(attacker_id)
+        target_stats = db.get_ship_total_stats(target_id)
+        
+        my_power = sum(my_stats.values())
+        target_power = sum(target_stats.values())
+        
+        # 2. Розраховуємо переможця (з додаванням випадковості +/- 20% до сили)
+        my_roll = my_power * random.uniform(0.8, 1.2)
+        target_roll = target_power * random.uniform(0.8, 1.2)
+        
+        with db.connection:
+            db.cursor.execute("SELECT balance, name FROM families WHERE id = %s", (target_id,))
+            target_data = db.cursor.fetchone()
+            target_balance = target_data[0]
+            target_name = target_data[1]
+            
+        loot = 0
+        win = False
+        
+        if my_roll >= target_roll:
+            win = True
+            # Якщо перемога - крадемо від 10% до 15% грошей цілі
+            loot = int(target_balance * random.uniform(0.1, 0.15)) 
+            
+            with db.connection:
+                # Знімаємо з цілі
+                db.cursor.execute("UPDATE families SET balance = balance - %s WHERE id = %s", (loot, target_id))
+                # Даємо цілі щит на 4 години, щоб її не "забили" інші
+                shield_time = datetime.datetime.now() + datetime.timedelta(hours=4)
+                db.cursor.execute("UPDATE families SET shield_until = %s WHERE id = %s", (shield_time, target_id))
+                
+                # Зараховуємо лут атакуючому
+                db.cursor.execute("UPDATE families SET balance = balance + %s WHERE id = %s", (loot, attacker_id))
+                
+                # Встановлюємо кулдаун на атаки для нас (наприклад, 1 година)
+                cooldown_time = datetime.datetime.now() + datetime.timedelta(hours=1)
+                db.cursor.execute("UPDATE families SET last_raid_time = %s WHERE id = %s", (cooldown_time, attacker_id))
+                
+            msg = f"⚔️ <b>Успішний Рейд!</b>\nВи розгромили колонію <b>{target_name}</b> і викрали <b>{loot}</b> 🪙!"
+        else:
+            msg = f"💥 <b>Поразка...</b>\nОборона колонії <b>{target_name}</b> виявилась сильнішою. Ваш флот відступив."
+        
+        # 3. Відправляємо результат у Telegram гравцю
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        requests.post(url, json={"chat_id": user_id, "text": msg, "parse_mode": "HTML"})
+        
+        return jsonify({'success': True, 'win': win, 'loot': loot, 'message': msg})
+        
+    except Exception as e:
+        print("RAID ATTACK ERROR:", e)
+        return jsonify({'error': 'Помилка бою'}), 500
 
 def run_flask():
     # Port 5000 стандартний, Render сам його прокине

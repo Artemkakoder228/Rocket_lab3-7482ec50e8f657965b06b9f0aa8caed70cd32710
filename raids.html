@@ -4,133 +4,196 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Радар Рейдів</title>
-    <link rel="stylesheet" href="CSS/Earth.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { text-align: center; color: white; display: flex; flex-direction: column; align-items: center; justify-content: space-between; min-height: 95vh; padding: 20px 0; overflow: hidden; background: radial-gradient(circle at center, #0a0f1e 0%, #000 100%); }
+        body { 
+            text-align: center; color: white; display: flex; flex-direction: column; 
+            align-items: center; min-height: 95vh; padding: 20px 0; overflow-x: hidden; 
+            background: radial-gradient(circle at center, #0a0f1e 0%, #000 100%); 
+            font-family: sans-serif;
+            margin: 0;
+        }
         
-        .header-title { font-size: 28px; font-weight: bold; color: #ff3232; text-shadow: 0 0 15px rgba(255, 50, 50, 0.8); letter-spacing: 3px; margin-top: 10px; z-index: 10;}
-        .subtitle { color: #00f3ff; font-size: 16px; font-family: monospace; letter-spacing: 1px; z-index: 10; margin-bottom: 20px; animation: pulseText 1.5s infinite alternate;}
+        .header-title { font-size: 26px; font-weight: bold; color: #ff3232; text-shadow: 0 0 15px rgba(255, 50, 50, 0.8); letter-spacing: 2px; margin-top: 10px;}
+        .subtitle { color: #00f3ff; font-size: 14px; font-family: monospace; margin-bottom: 20px; }
 
-        @keyframes pulseText { 0% { opacity: 0.5; } 100% { opacity: 1; text-shadow: 0 0 10px #00f3ff; } }
-
-        /* === ТАКТИЧНИЙ РАДАР (ПОЧАТКОВИЙ СТИЛЬ З ЛІНІЯМИ) === */
+        /* Радар */
         .radar-container {
-            position: relative; width: 320px; height: 320px; margin: 20px auto;
+            position: relative; width: 150px; height: 150px; margin: 10px auto;
             border-radius: 50%;
-            /* 🔥 ПРИБРАЛИ ЗАПОВНЕННЯ І ТІНІ, ЯКІ СТВОРЮВАЛИ ЧОРНІ КОЛА */
-            background: transparent !important;
-            box-shadow: none !important;
+            border: 2px solid rgba(0, 243, 255, 0.3);
             display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);
         }
+        .radar-sweep {
+            position: absolute; width: 50%; height: 2px;
+            background: linear-gradient(90deg, rgba(0,243,255,0) 0%, rgba(0,243,255,1) 100%);
+            top: 50%; left: 50%; transform-origin: 0% 50%;
+            animation: sweep 2s linear infinite;
+        }
+        @keyframes sweep { 100% { transform: rotate(360deg); } }
 
-        /* Орбіти ЗІ ШТРИХОВАНИМИ ЛІНІЯМИ */
-        .orbit { position: absolute; border-radius: 50%; border: 1px dashed rgba(0, 243, 255, 0.4); /* Dashed lines */ }
-        .orbit-1 { width: 100px; height: 100px; animation: spin 8s linear infinite; }
-        .orbit-2 { width: 200px; height: 200px; border-style: dashed; animation: spin 15s linear infinite reverse; }
-        .orbit-3 { width: 300px; height: 300px; border-color: rgba(255, 50, 50, 0.3); animation: spin 25s linear infinite; }
-
-        /* Сонце та Планети */
-        .sun { font-size: 40px; position: absolute; filter: drop-shadow(0 0 20px #ffaa00); z-index: 5; }
-        .planet { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); font-size: 20px; filter: drop-shadow(0 0 10px currentColor); }
+        /* Список цілей */
+        .targets-container {
+            width: 90%; max-width: 400px;
+            margin-top: 20px;
+            text-align: left;
+        }
         
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-
-        /* === АНІМАЦІЇ РАКЕТ === */
-        .rocket { position: absolute; font-size: 18px; z-index: 10; opacity: 0; filter: drop-shadow(0 0 10px #ffaa00); }
-        .rocket-1 { animation: fly1 4s ease-in-out infinite 1s; }
-        .rocket-2 { animation: fly2 5s ease-in-out infinite 3s; }
-
-        @keyframes fly1 {
-            0% { top: 300px; left: -20px; transform: rotate(45deg); opacity: 0; }
-            20% { opacity: 1; }
-            80% { opacity: 1; }
-            100% { top: -20px; left: 300px; transform: rotate(45deg); opacity: 0; }
+        .target-card {
+            background: rgba(0, 243, 255, 0.05);
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            transition: 0.2s;
         }
-        @keyframes fly2 {
-            0% { top: 0px; left: 350px; transform: rotate(-135deg); opacity: 0; }
-            20% { opacity: 1; }
-            80% { opacity: 1; }
-            100% { top: 350px; left: -50px; transform: rotate(-135deg); opacity: 0; }
-        }
-
-        /* === ТЕРМІНАЛ ПОВІДОМЛЕНЬ === */
-        .terminal {
-            width: 90%; background: rgba(0, 0, 0, 0.6); border: 1px solid var(--accent-cyan);
-            border-radius: 10px; padding: 15px; font-family: monospace; color: #00ff64;
-            font-size: 13px; text-align: left; height: 80px; overflow: hidden;
-            box-shadow: inset 0 0 10px rgba(0, 255, 100, 0.1); margin-bottom: 20px;
-        }
-        .log-line { margin: 3px 0; opacity: 0; animation: typeLine 0.5s forwards; }
+        .target-card:hover { border-color: #ff3232; background: rgba(255, 50, 50, 0.05); }
         
-        @keyframes typeLine { to { opacity: 1; } }
+        .target-info h4 { margin: 0 0 5px 0; color: #fff; font-size: 16px; }
+        .target-info p { margin: 2px 0; font-size: 13px; color: #aaa; font-family: monospace;}
+        .target-info span { color: #00f3ff; font-weight: bold; }
+        .target-info .loot { color: #ffd700; }
 
-        .leave-btn { display: block; width: 90%; padding: 15px; background: rgba(255, 50, 50, 0.1); border: 1px solid #ff3232; color: #ff3232; border-radius: 10px; font-family: monospace; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-bottom: 10px;}
-        .leave-btn:hover { background: #ff3232; color: #000; box-shadow: 0 0 20px #ff3232; }
+        .attack-btn {
+            background: #ff3232; color: white; border: none;
+            padding: 10px 15px; border-radius: 8px; font-weight: bold;
+            box-shadow: 0 0 10px rgba(255, 50, 50, 0.5); cursor: pointer;
+        }
+        .attack-btn:active { transform: scale(0.95); }
+
+        .leave-btn { 
+            margin-top: 20px; width: 90%; max-width: 400px; padding: 15px; 
+            background: transparent; border: 1px solid #aaa; color: #aaa; 
+            border-radius: 10px; font-weight: bold; cursor: pointer; 
+        }
+        .loader { color: #00f3ff; font-family: monospace; font-size: 16px; margin: 20px 0; animation: pulse 1s infinite alternate;}
+        @keyframes pulse { to { opacity: 0.3; } }
 
     </style>
 </head>
 <body>
-    <div id="space-container"></div>
     
-    <div>
-        <div class="header-title">СИСТЕМА РЕЙДІВ</div>
-        <div class="subtitle">▶ СТАТУС: У РОЗРОБЦІ ◀</div>
-    </div>
+    <div class="header-title">ТАКТИЧНИЙ РАДАР</div>
+    <div class="subtitle" id="status-text">▶ Встановлення зв'язку... ◀</div>
 
     <div class="radar-container">
-        <div class="sun">☀️</div>
-        
-        <div class="orbit orbit-1"><div class="planet">🌍</div></div>
-        <div class="orbit orbit-2"><div class="planet">🔴</div></div>
-        <div class="orbit orbit-3"><div class="planet">🪐</div></div>
-
-        <div class="rocket rocket-1">🚀</div>
-        <div class="rocket rocket-2">🚀</div>
+        <div class="radar-sweep"></div>
+        <div style="font-size: 40px;" id="planet-icon">🌍</div>
     </div>
 
-    <div class="terminal" id="terminal">
-        <div class="log-line">> Встановлення захищеного з'єднання...</div>
-    </div>
+    <div class="loader" id="loader">> Сканування сектору...</div>
 
-    <button class="leave-btn" onclick="window.Telegram.WebApp.close()">✖ ЗАКРИТИ РАДАР</button>
+    <div class="targets-container" id="targets-list">
+        </div>
+
+    <button class="leave-btn" onclick="tg.close()">ВІДСТУПИТИ</button>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        // Імітація повідомлень радара
-        const logs = [
-            "> Сканування сектору Альфа...",
-            "> Виявлено 3 ворожі флотилії.",
-            "> Перехоплення сигналу зв'язку...",
-            "> Дешифрування: [ДОСТУП ЗАБОРОНЕНО]",
-            "> Підготовка нових бойових крейсерів...",
-            "> Оновлення модулів озброєння...",
-            "> СИСТЕМА БУДЕ АКТИВОВАНА ЗГОДОМ."
-        ];
+        const urlParams = new URLSearchParams(window.location.search);
+        const familyId = urlParams.get('family_id');
+        const userId = urlParams.get('user_id');
 
-        const terminal = document.getElementById('terminal');
-        let step = 0;
+        const statusText = document.getElementById('status-text');
+        const targetsList = document.getElementById('targets-list');
+        const loader = document.getElementById('loader');
+        const planetIcon = document.getElementById('planet-icon');
 
-        function addLog() {
-            if (step >= logs.length) {
-                setTimeout(() => { terminal.innerHTML = ''; step = 0; addLog(); }, 3000); // Очищуємо і по колу
-                return;
+        async function fetchTargets() {
+            try {
+                // Сервер повинен бути на тій же адресі (відносний шлях)
+                const response = await fetch(`/api/raid/targets?family_id=${familyId}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    statusText.innerText = `Помилка: ${data.error}`;
+                    loader.style.display = 'none';
+                    return;
+                }
+
+                // Встановлюємо іконку планети
+                const p = data.planet.toLowerCase();
+                if (p === 'earth') planetIcon.innerText = '🌍';
+                else if (p === 'moon') planetIcon.innerText = '🌑';
+                else if (p === 'mars') planetIcon.innerText = '🔴';
+                else if (p === 'jupiter') planetIcon.innerText = '🪐';
+
+                statusText.innerText = `▶ Сектор: ${data.planet.toUpperCase()} | Ваша міць: ${data.my_power} ◀`;
+                loader.style.display = 'none';
+
+                if (data.targets.length === 0) {
+                    targetsList.innerHTML = `<p style="text-align:center; color:#aaa;">У цьому секторі не виявлено гідних супротивників або всі вони знаходяться під енергетичним щитом.</p>`;
+                    return;
+                }
+
+                // Малюємо картки
+                data.targets.forEach(target => {
+                    const card = document.createElement('div');
+                    card.className = 'target-card';
+                    card.innerHTML = `
+                        <div class="target-info">
+                            <h4>Колонія: ${target.name}</h4>
+                            <p>Міць оборони: <span>${target.power} ⚔️</span></p>
+                            <p>Можливий лут: <span class="loot">~${target.loot_coins} 🪙</span></p>
+                        </div>
+                        <button class="attack-btn" onclick="attack(${target.id}, this)">🚀 АТАКА</button>
+                    `;
+                    targetsList.appendChild(card);
+                });
+
+                tg.HapticFeedback.notificationOccurred('success');
+
+            } catch (err) {
+                loader.innerText = "> Помилка сканування радара!";
+                console.error(err);
             }
-            const line = document.createElement('div');
-            line.className = 'log-line';
-            line.innerText = logs[step];
-            terminal.appendChild(line);
-            terminal.scrollTop = terminal.scrollHeight; // Скролимо вниз
-            
-            if (step === logs.length - 1) tg.HapticFeedback.notificationOccurred('warning');
-            
-            step++;
-            setTimeout(addLog, 1500 + Math.random() * 1000);
         }
 
-        setTimeout(addLog, 1500);
+        async function attack(targetId, btnElement) {
+            btnElement.disabled = true;
+            btnElement.innerText = "БОЙОВА ТРИВОГА...";
+            btnElement.style.background = "#555";
+            tg.HapticFeedback.impactOccurred('heavy');
+
+            try {
+                const response = await fetch('/api/raid/attack', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        family_id: familyId,
+                        user_id: userId,
+                        target_id: targetId
+                    })
+                });
+
+                const data = await response.json();
+                
+                // Вібруємо залежно від результату
+                if(data.win) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                } else {
+                    tg.HapticFeedback.notificationOccurred('error');
+                }
+
+                // Закриваємо веб-додаток, бот надішле результат бою в чат
+                tg.showAlert("Бій завершено! Результати надіслані вам у закритий канал зв'язку (в чат бота).", () => {
+                    tg.close();
+                });
+
+            } catch (err) {
+                alert("Помилка зв'язку з командуванням.");
+                btnElement.disabled = false;
+                btnElement.innerText = "🚀 АТАКА";
+            }
+        }
+
+        // Запускаємо сканування після невеликої затримки для краси
+        setTimeout(fetchTargets, 1500);
+
     </script>
 </body>
 </html>
