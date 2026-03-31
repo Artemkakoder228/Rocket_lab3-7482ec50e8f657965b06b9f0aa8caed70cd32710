@@ -147,20 +147,10 @@ class Database:
                 )
             """)
         try:
-            # У PostgreSQL це відпрацює ідеально. 
-            # Якщо колонка є - помилки не буде, піде до наступної команди.
-            self.cursor.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS last_fortune TIMESTAMP DEFAULT to_timestamp(0)")
-            self.cursor.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS quiz_attempts INTEGER DEFAULT 0")
-            self.cursor.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS last_quiz_date DATE DEFAULT CURRENT_DATE")
-            
-            # Якщо всі 3 команди пройшли (або були проігноровані через IF NOT EXISTS), фіксуємо зміни
-            self.connection.commit()
-            
-        except Exception as e:
-            # У PostgreSQL, якщо стається будь-яка помилка (наприклад, синтаксична), 
-            # транзакція блокується. Тому rollback() тут ЖИТТЄВО необхідний.
-            print(f"Помилка оновлення схеми БД Neon: {e}")
-            self.connection.rollback()
+                self.cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+                self.connection.commit()
+        except Exception:
+                self.connection.rollback()
             # --- МЕТОДИ ---
 
     def create_family(self, user_id, family_name):
@@ -169,19 +159,12 @@ class Database:
         
         invite_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
         with self.connection:
+            # ДОДАЄМО ПОЧАТКОВІ РЕСУРСИ (res_iron, res_fuel) ПРЯМО В ТАБЛИЦЮ families
             self.cursor.execute(
-                "INSERT INTO families (name, invite_code, balance) VALUES (%s, %s, 1000) RETURNING id",
+                "INSERT INTO families (name, invite_code, balance, res_iron, res_fuel) VALUES (%s, %s, 1000, 100, 100) RETURNING id",
                 (family_name, invite_code)
             )
             family_id = self.cursor.fetchone()[0]
-            
-            # ---> ДОДАНО: ІНІЦІАЛІЗАЦІЯ РЕСУРСІВ <---
-            # Створюємо пустий склад для нової сім'ї, даємо трохи заліза та палива для старту
-            self.cursor.execute(
-                "INSERT INTO family_resources (family_id, iron, fuel) VALUES (%s, 100, 100)",
-                (family_id,)
-            )
-            # ----------------------------------------
             
             # ДОДАЄМО ПОЧАТКОВІ МОДУЛІ В БД (щоб JS бачив їх як owned та працював requires)
             starting_modules = [
@@ -772,6 +755,7 @@ class Database:
             self.cursor.execute(f"UPDATE families SET {col} = {col} + %s, last_fortune = %s WHERE id = %s", (amount, now, family_id))
 
     # --- СІМЕЙНИЙ ВЕБ-ЧАТ ---
+    # --- СІМЕЙНИЙ ВЕБ-ЧАТ ---
     def get_family_members_status(self, family_id):
         """Повертає учасників і перевіряє, чи були вони активні останні 2 хвилини"""
         with self.connection:
@@ -796,7 +780,7 @@ class Database:
             """, (family_id, user_id, username, text))
 
     def get_chat_messages(self, family_id, limit=50):
-        """Отримує останні N повідомлень, відсортовані за часом"""
+        """Отримує останні 50 повідомлень"""
         with self.connection:
             self.cursor.execute("""
                 SELECT user_id, username, text, created_at

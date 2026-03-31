@@ -576,33 +576,36 @@ def attack_target():
     
 # --- АПІ ДЛЯ СІМЕЙНОГО ЧАТУ ---
 
+# --- АПІ ДЛЯ СІМЕЙНОГО ЧАТУ ---
+
 @app.route('/api/chat/init', methods=['GET'])
 def chat_init():
     user_id_raw = request.args.get('user_id')
     if not user_id_raw: return jsonify({'error': 'No user_id'}), 400
     
-    user_id = int(user_id_raw) # Перетворюємо в число для БД
+    user_id = int(user_id_raw)
     family_id = db.get_user_family(user_id)
     
     if not family_id:
         return jsonify({'error': 'Ви не перебуваєте в сім\'ї!'}), 403
         
     db.ping_user_activity(user_id)
-    family_data = db.get_family(family_id) # Використовуємо існуючий метод get_family
+    family_data = db.get_family(family_id)
     
     if not family_data:
         return jsonify({'error': 'Сім\'ю не знайдено'}), 404
         
     return jsonify({
         'family_id': family_id, 
-        'family_name': family_data[1] # Назва сім'ї під індексом 1
+        'family_name': family_data[1] 
     })
+
 @app.route('/api/chat/sync', methods=['GET'])
 def chat_sync():
     family_id = request.args.get('family_id')
     user_id = request.args.get('user_id')
     
-    if user_id: db.ping_user_activity(user_id) # Підтверджуємо, що ми онлайн
+    if user_id: db.ping_user_activity(int(user_id))
         
     messages = db.get_chat_messages(family_id)
     statuses = db.get_family_members_status(family_id)
@@ -628,23 +631,21 @@ def chat_send():
     
     if not text.strip(): return jsonify({'error': 'Empty message'}), 400
     
-    db.ping_user_activity(user_id)
+    db.ping_user_activity(int(user_id))
     db.add_chat_message(family_id, user_id, username, text)
     
-    # === ВІДПРАВКА СПОВІЩЕНЬ ОФЛАЙН КОРИСТУВАЧАМ ===
+    # Відправка сповіщень офлайн користувачам
     statuses = db.get_family_members_status(family_id)
-    
     for s in statuses:
         mem_id = str(s[0])
         is_online = s[3]
-        # Якщо це не автор повідомлення і людина ОФЛАЙН - шлемо пуш у Telegram
         if mem_id != str(user_id) and not is_online:
             try:
                 url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-                msg_text = f"💬 <b>[{username}] у чаті сім'ї:</b>\n{text}"
+                msg_text = f"💬 <b>[{username}] у чаті:</b>\n{text}"
                 requests.post(url, json={"chat_id": mem_id, "text": msg_text, "parse_mode": "HTML", "reply_markup": {"inline_keyboard": [[{"text": "Відкрити Чат", "web_app": {"url": f"{request.host_url}chat.html"}}]]}})
-            except Exception as e:
-                print("Помилка відправки пуша:", e)
+            except Exception:
+                pass
 
     return jsonify({'success': True})
 
