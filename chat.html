@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Сімейний Чат</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { 
+            margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #0e1621; color: #fff; display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+        }
+        
+        /* HEADER */
+        .header {
+            background: #17212b; padding: 10px 15px; display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3); z-index: 10;
+        }
+        .header-info h2 { margin: 0; font-size: 18px; font-weight: 600; }
+        .header-info p { margin: 2px 0 0; font-size: 13px; color: #7f91a4; }
+        .online-dot { display: inline-block; width: 8px; height: 8px; background: #32c850; border-radius: 50%; margin-right: 5px; }
+
+        /* CHAT AREA */
+        .chat-container {
+            flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
+        }
+        .message { max-width: 80%; padding: 8px 12px; border-radius: 12px; position: relative; font-size: 15px; line-height: 1.4; word-wrap: break-word; }
+        .message-time { font-size: 11px; color: rgba(255,255,255,0.5); float: right; margin: 5px 0 -5px 10px; }
+        .message-author { font-size: 13px; font-weight: bold; margin-bottom: 3px; }
+        
+        /* My message */
+        .msg-self { align-self: flex-end; background: #2b5278; border-bottom-right-radius: 4px; }
+        .msg-self .message-author { display: none; } /* Не показуємо своє ім'я */
+
+        /* Others message */
+        .msg-other { align-self: flex-start; background: #182533; border-bottom-left-radius: 4px; }
+        .msg-other .message-author { color: #64b5ef; }
+
+        /* INPUT AREA */
+        .input-area {
+            background: #17212b; padding: 10px; display: flex; align-items: center; gap: 10px;
+        }
+        .input-box {
+            flex-grow: 1; background: #242f3d; border: none; padding: 12px 15px; border-radius: 20px;
+            color: #fff; font-size: 16px; outline: none;
+        }
+        .input-box::placeholder { color: #7f91a4; }
+        .send-btn {
+            background: #5288c1; border: none; width: 42px; height: 42px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; cursor: pointer; color: white; transition: 0.2s;
+        }
+        .send-btn:active { transform: scale(0.9); background: #4676a9; }
+        
+        /* Members list */
+        .members-popup { display: none; position: absolute; top: 60px; right: 10px; background: #17212b; border: 1px solid #242f3d; border-radius: 8px; padding: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 20; min-width: 150px;}
+        .member-item { display: flex; align-items: center; margin: 8px 0; font-size: 14px;}
+        .member-item.offline .online-dot { background: #7f91a4; }
+
+    </style>
+</head>
+<body>
+    <div class="header" onclick="toggleMembers()">
+        <div class="header-info">
+            <h2 id="family-name">Завантаження...</h2>
+            <p><span class="online-dot"></span><span id="online-count">Підключення...</span></p>
+        </div>
+        <div style="font-size: 20px;">👥</div>
+    </div>
+
+    <div class="members-popup" id="members-list"></div>
+
+    <div class="chat-container" id="chat">
+        </div>
+
+    <div class="input-area">
+        <input type="text" class="input-box" id="msg-input" placeholder="Повідомлення..." autocomplete="off" onkeypress="handleEnter(event)">
+        <button class="send-btn" onclick="sendMessage()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        const user = tg.initDataUnsafe?.user;
+        const myUserId = user ? String(user.id) : "0";
+        const myUsername = user ? (user.username || user.first_name) : "Анонім";
+        let myFamilyId = null;
+
+        const chatBox = document.getElementById('chat');
+        const familyNameEl = document.getElementById('family-name');
+        const onlineCountEl = document.getElementById('online-count');
+        const membersListEl = document.getElementById('members-list');
+        const inputEl = document.getElementById('msg-input');
+
+        let lastMessageCount = 0;
+
+        async function initChat() {
+            try {
+                const res = await fetch(`/api/chat/init?user_id=${myUserId}`);
+                const data = await res.json();
+                if (data.error) {
+                    familyNameEl.innerText = "Помилка доступу";
+                    onlineCountEl.innerText = data.error;
+                    return;
+                }
+                myFamilyId = data.family_id;
+                familyNameEl.innerText = data.family_name;
+                
+                syncChat(); // Перше завантаження
+                setInterval(syncChat, 2000); // Оновлення кожні 2 секунди
+            } catch (err) { console.error(err); }
+        }
+
+        async function syncChat() {
+            if (!myFamilyId) return;
+            try {
+                const res = await fetch(`/api/chat/sync?family_id=${myFamilyId}&user_id=${myUserId}`);
+                const data = await res.json();
+                
+                // 1. Оновлення списку учасників
+                updateMembers(data.members);
+
+                // 2. Оновлення повідомлень
+                if (data.messages.length !== lastMessageCount) {
+                    renderMessages(data.messages);
+                    lastMessageCount = data.messages.length;
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        function updateMembers(members) {
+            let onlineCount = 0;
+            membersListEl.innerHTML = '';
+            
+            members.forEach(m => {
+                if (m.is_online) onlineCount++;
+                
+                const div = document.createElement('div');
+                div.className = `member-item ${m.is_online ? '' : 'offline'}`;
+                const icon = m.role === 'captain' ? '👑' : '👨‍🚀';
+                div.innerHTML = `<span class="online-dot"></span> ${icon} ${m.username}`;
+                membersListEl.appendChild(div);
+            });
+            
+            onlineCountEl.innerText = `${onlineCount} онлайн`;
+        }
+
+        function renderMessages(messages) {
+            const isScrolledToBottom = chatBox.scrollHeight - chatBox.clientHeight <= chatBox.scrollTop + 50;
+            
+            chatBox.innerHTML = '';
+            messages.forEach(m => {
+                const div = document.createElement('div');
+                const isMine = String(m.user_id) === myUserId;
+                div.className = `message ${isMine ? 'msg-self' : 'msg-other'}`;
+                
+                div.innerHTML = `
+                    <div class="message-author">${m.username}</div>
+                    ${m.text}
+                    <span class="message-time">${m.time}</span>
+                `;
+                chatBox.appendChild(div);
+            });
+
+            // Скролимо вниз тільки якщо ми були внизу (щоб не заважати читати історію)
+            if (isScrolledToBottom || lastMessageCount === 0) {
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        }
+
+        async function sendMessage() {
+            const text = inputEl.value.trim();
+            if (!text || !myFamilyId) return;
+
+            inputEl.value = ''; // Одразу чистимо поле
+            
+            // Локально малюємо для швидкості (оптимістичний UI)
+            const div = document.createElement('div');
+            div.className = 'message msg-self';
+            div.innerHTML = `${text}<span class="message-time">...</span>`;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            tg.HapticFeedback.impactOccurred('light');
+
+            try {
+                await fetch('/api/chat/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        family_id: myFamilyId, user_id: myUserId, 
+                        username: myUsername, text: text
+                    })
+                });
+                syncChat(); // Оновлюємо після відправки
+            } catch (err) { console.error("Помилка відправки", err); }
+        }
+
+        function handleEnter(e) { if (e.key === 'Enter') sendMessage(); }
+        function toggleMembers() { membersListEl.style.display = membersListEl.style.display === 'block' ? 'none' : 'block'; }
+
+        initChat();
+    </script>
+</body>
+</html>

@@ -135,17 +135,33 @@ class Database:
                     reward INTEGER
                 )
             """)
-        # Додаємо колонку для Колеса Фортуни, якщо її немає
-        # Безпечне додавання нових колонок для Колеса та Лабораторії
+
+            self.cursor.execute("""
+                CREATE TABLE IF NOT EXISTS family_messages (
+                    id SERIAL PRIMARY KEY,
+                    family_id INTEGER REFERENCES families(id),
+                    user_id BIGINT,
+                    username TEXT,
+                    text TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
         try:
+            # У PostgreSQL це відпрацює ідеально. 
+            # Якщо колонка є - помилки не буде, піде до наступної команди.
             self.cursor.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS last_fortune TIMESTAMP DEFAULT to_timestamp(0)")
             self.cursor.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS quiz_attempts INTEGER DEFAULT 0")
             self.cursor.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS last_quiz_date DATE DEFAULT CURRENT_DATE")
+            
+            # Якщо всі 3 команди пройшли (або були проігноровані через IF NOT EXISTS), фіксуємо зміни
             self.connection.commit()
+            
         except Exception as e:
-            print(f"Помилка оновлення бази даних: {e}")
+            # У PostgreSQL, якщо стається будь-яка помилка (наприклад, синтаксична), 
+            # транзакція блокується. Тому rollback() тут ЖИТТЄВО необхідний.
+            print(f"Помилка оновлення схеми БД Neon: {e}")
             self.connection.rollback()
-    # --- МЕТОДИ ---
+            # --- МЕТОДИ ---
 
     def create_family(self, user_id, family_name):
         invite_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
@@ -744,3 +760,43 @@ class Database:
         now = datetime.now()
         with self.connection:
             self.cursor.execute(f"UPDATE families SET {col} = {col} + %s, last_fortune = %s WHERE id = %s", (amount, now, family_id))
+
+    # --- СІМЕЙНИЙ ВЕБ-ЧАТ ---
+    def get_family_members_status(self, family_id):
+        """Повертає учасників і перевіряє, чи були вони активні останні 2 хвилини"""
+        with self.connection:
+            self.cursor.execute("""
+                SELECT user_id, username, role, 
+                       (CURRENT_TIMESTAMP - last_active) < INTERVAL '2 minutes' AS is_online
+                FROM users 
+                WHERE family_id = %s
+            """, (family_id,))
+            return self.cursor.fetchall()
+            
+    def ping_user_activity(self, user_id):
+        """Оновлює час останньої активності користувача"""
+        with self.connection:
+            self.cursor.execute("UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE user_id = %s", (user_id,))
+
+    def add_chat_message(self, family_id, user_id, username, text):
+        with self.connection:
+            self.cursor.execute("""
+                INSERT INTO family_messages (family_id, user_id, username, text)
+                VALUES (%s, %s, %s, %s)
+            """, (family_id, user_id, username, text))
+
+    def get_chat_messages(self, family_id, limit=50):
+        """Отримує останні N повідомлень, відсортовані за часом"""
+        with self.connection:
+            self.cursor.execute("""
+                SELECT user_id, username, text, created_at
+                FROM (
+                    SELECT user_id, username, text, created_at
+                    FROM family_messages
+                    WHERE family_id = %s
+                    ORDER BY created_at DESC
+                    LIMIT %s
+                ) AS sub
+                ORDER BY created_at ASC
+            """, (family_id, limit))
+            return self.cursor.fetchall()

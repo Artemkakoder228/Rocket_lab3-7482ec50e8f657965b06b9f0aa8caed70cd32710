@@ -573,6 +573,69 @@ def attack_target():
     except Exception as e:
         print("RAID ATTACK ERROR:", e)
         return jsonify({'error': 'Помилка бою'}), 500
+    
+# --- АПІ ДЛЯ СІМЕЙНОГО ЧАТУ ---
+
+@app.route('/api/chat/init', methods=['GET'])
+def chat_init():
+    user_id = request.args.get('user_id')
+    family_id = db.get_user_family(user_id)
+    if not family_id:
+        return jsonify({'error': 'Ви не в сім\'ї!'}), 403
+    db.ping_user_activity(user_id)
+    family_info = db.get_family_info(family_id)
+    return jsonify({'family_id': family_id, 'family_name': family_info[0]})
+
+@app.route('/api/chat/sync', methods=['GET'])
+def chat_sync():
+    family_id = request.args.get('family_id')
+    user_id = request.args.get('user_id')
+    
+    if user_id: db.ping_user_activity(user_id) # Підтверджуємо, що ми онлайн
+        
+    messages = db.get_chat_messages(family_id)
+    statuses = db.get_family_members_status(family_id)
+    
+    msg_data = [{
+        'user_id': str(m[0]), 'username': m[1], 'text': m[2], 
+        'time': m[3].strftime("%H:%M") if m[3] else ""
+    } for m in messages]
+    
+    status_data = [{
+        'user_id': str(s[0]), 'username': s[1], 'role': s[2], 'is_online': s[3]
+    } for s in statuses]
+    
+    return jsonify({'messages': msg_data, 'members': status_data})
+
+@app.route('/api/chat/send', methods=['POST'])
+def chat_send():
+    data = request.json
+    family_id = data.get('family_id')
+    user_id = data.get('user_id')
+    username = data.get('username')
+    text = data.get('text')
+    
+    if not text.strip(): return jsonify({'error': 'Empty message'}), 400
+    
+    db.ping_user_activity(user_id)
+    db.add_chat_message(family_id, user_id, username, text)
+    
+    # === ВІДПРАВКА СПОВІЩЕНЬ ОФЛАЙН КОРИСТУВАЧАМ ===
+    statuses = db.get_family_members_status(family_id)
+    
+    for s in statuses:
+        mem_id = str(s[0])
+        is_online = s[3]
+        # Якщо це не автор повідомлення і людина ОФЛАЙН - шлемо пуш у Telegram
+        if mem_id != str(user_id) and not is_online:
+            try:
+                url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+                msg_text = f"💬 <b>[{username}] у чаті сім'ї:</b>\n{text}"
+                requests.post(url, json={"chat_id": mem_id, "text": msg_text, "parse_mode": "HTML", "reply_markup": {"inline_keyboard": [[{"text": "Відкрити Чат", "web_app": {"url": f"{request.host_url}chat.html"}}]]}})
+            except Exception as e:
+                print("Помилка відправки пуша:", e)
+
+    return jsonify({'success': True})
 
 def run_flask():
     # Port 5000 стандартний, Render сам його прокине
