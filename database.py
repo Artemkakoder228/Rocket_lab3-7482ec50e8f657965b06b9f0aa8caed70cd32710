@@ -164,6 +164,9 @@ class Database:
             # --- МЕТОДИ ---
 
     def create_family(self, user_id, family_name):
+        import random
+        import string
+        
         invite_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
         with self.connection:
             self.cursor.execute(
@@ -172,7 +175,14 @@ class Database:
             )
             family_id = self.cursor.fetchone()[0]
             
-            # ДОДАЄМО ПОЧАТКОВІ МОДУЛІ В БД (щоб JS бачив їх як owned)
+            # ---> ДОДАНО: ІНІЦІАЛІЗАЦІЯ РЕСУРСІВ <---
+            # Створюємо пустий склад для нової сім'ї, даємо трохи заліза та палива для старту
+            self.cursor.execute(
+                "INSERT INTO family_resources (family_id, iron, fuel) VALUES (%s, 100, 100)",
+                (family_id,)
+            )
+            # ----------------------------------------
+            
             # ДОДАЄМО ПОЧАТКОВІ МОДУЛІ В БД (щоб JS бачив їх як owned та працював requires)
             starting_modules = [
                 # Земля

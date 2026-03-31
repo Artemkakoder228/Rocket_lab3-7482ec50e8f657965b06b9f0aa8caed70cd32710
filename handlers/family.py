@@ -62,10 +62,14 @@ async def family_info(message: types.Message):
     family = db.get_family(fid)
     stats = db.get_ship_total_stats(fid)
     data = db.get_family_resources(fid)
-    members = db.get_family_members(fid)
-    members_count = len(members) # Отримуємо реальну кількість
     
-    # Формуємо список учасників
+    # Якщо даних про ресурси немає, створюємо пустий список з нулями
+    if not data:
+        data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "Earth"]
+
+    members = db.get_family_members(fid)
+    members_count = len(members)
+    
     members_list_text = ""
     for m in members:
         icon = "👑" if m[1] == 'captain' else "👨‍🚀"
@@ -77,12 +81,15 @@ async def family_info(message: types.Message):
         f"🌌 <b>КАБІНЕТ СІМ'Ї: {family[1]}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
         f"🔑 <b>Код:</b> <code>{family[2]}</code>\n"
-        f"👥 <b>Учасники ({members_count}/4):</b>\n" # Додано ліміт /4
+        f"👥 <b>Учасники ({members_count}/4):</b>\n"
         f"{members_list_text}"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
         f"📊 <b>Характеристики корабля:</b>\n"
-        f"🚀 Швидкість: <b>{stats['speed']}</b> | ⚔️ Урон: <b>{stats['damage']}</b>\n"
-        f"🛡️ Захист: <b>{stats['armor']}</b>\n"
+        f"🚀 Ш: <b>{stats['speed']}</b> | 🛡️ З: <b>{stats['armor']}</b> | ⚔️ У: <b>{stats['damage']}</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📦 <b>Склад ресурсів:</b>\n"
+        f"🔩 Залізо: <b>{data[1]}/{MAX}</b> | ⛽ Паливо: <b>{data[2]}/{MAX}</b>\n"
+        f"🌑 Реголіт: <b>{data[3]}/{MAX}</b> | ⚛️ Гелій-3: <b>{data[4]}/{MAX}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
         f"💰 Баланс: <b>{data[0]}</b> монет\n"
         f"🌍 Локація: <b>{data[11]}</b>"

@@ -578,14 +578,25 @@ def attack_target():
 
 @app.route('/api/chat/init', methods=['GET'])
 def chat_init():
-    user_id = request.args.get('user_id')
+    user_id_raw = request.args.get('user_id')
+    if not user_id_raw: return jsonify({'error': 'No user_id'}), 400
+    
+    user_id = int(user_id_raw) # Перетворюємо в число для БД
     family_id = db.get_user_family(user_id)
+    
     if not family_id:
-        return jsonify({'error': 'Ви не в сім\'ї!'}), 403
+        return jsonify({'error': 'Ви не перебуваєте в сім\'ї!'}), 403
+        
     db.ping_user_activity(user_id)
-    family_info = db.get_family_info(family_id)
-    return jsonify({'family_id': family_id, 'family_name': family_info[0]})
-
+    family_data = db.get_family(family_id) # Використовуємо існуючий метод get_family
+    
+    if not family_data:
+        return jsonify({'error': 'Сім\'ю не знайдено'}), 404
+        
+    return jsonify({
+        'family_id': family_id, 
+        'family_name': family_data[1] # Назва сім'ї під індексом 1
+    })
 @app.route('/api/chat/sync', methods=['GET'])
 def chat_sync():
     family_id = request.args.get('family_id')
