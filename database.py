@@ -283,9 +283,17 @@ class Database:
             self.cursor.execute("SELECT id FROM families WHERE invite_code = %s", (invite_code,))
             family = self.cursor.fetchone()
             if family:
-                self.cursor.execute("UPDATE users SET family_id = %s WHERE user_id = %s", (family[0], user_id))
-                return True
-            return False
+                fid = family[0]
+                # Перевірка поточної кількості учасників
+                self.cursor.execute("SELECT COUNT(*) FROM users WHERE family_id = %s", (fid,))
+                count = self.cursor.fetchone()[0]
+                
+                if count >= 4:
+                    return False, "full" # Повертаємо статус "повна сім'я"
+                
+                self.cursor.execute("UPDATE users SET family_id = %s WHERE user_id = %s", (fid, user_id))
+                return True, "success"
+            return False, "not_found"
 
     def get_family_info(self, family_id):
         with self.connection:

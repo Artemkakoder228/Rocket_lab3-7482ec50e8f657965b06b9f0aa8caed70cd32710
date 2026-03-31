@@ -13,20 +13,48 @@ def get_main_kb_no_family():
         resize_keyboard=True
     )
 
-def get_main_kb_with_family():
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="🌌 Кабінет сім'ї"), KeyboardButton(text="🛸 Ангар (Веб)")],
-            [KeyboardButton(text="📡 Місії"), KeyboardButton(text="🏭 Інфраструктура")],
-            [KeyboardButton(text="🛒 Магазин"), KeyboardButton(text="🎁 Вітальний бонус")],
-            [KeyboardButton(text="🎲 Розваги"), KeyboardButton(text="⚔️ Рейд")],
-            [KeyboardButton(text="👾 Космічний бій"), KeyboardButton(text="🚀 Навігація")],
-            [KeyboardButton(text="🔬 Лабораторія"), KeyboardButton(text="❌ Покинути сім'ю")],
-            # Додали кнопку для виклику WebApp відгуків
-            [KeyboardButton(text="💬 Зв'язок з розробником", web_app=WebAppInfo(url=f"{WEB_APP_URL}/feedback.html"))] 
-        ], 
-        resize_keyboard=True
+def get_main_kb_with_family() -> ReplyKeyboardMarkup:
+    builder = ReplyKeyboardBuilder()
+    
+    # Додаємо кнопки по черзі
+    builder.row(
+        KeyboardButton(text="🌌 Кабінет сім'ї"),
+        KeyboardButton(text="🛸 Ангар (Веб)")
     )
+    builder.row(
+        KeyboardButton(text="💬 Чат сім'ї"),
+        KeyboardButton(text="⚔️ Рейд")
+    )
+    builder.row(
+        KeyboardButton(text="📡 Місії"),
+        KeyboardButton(text="🏭 Інфраструктура")
+    )
+    builder.row(
+        KeyboardButton(text="🛒 Магазин"),
+        KeyboardButton(text="🎁 Вітальний бонус")
+    )
+    builder.row(
+        KeyboardButton(text="👾 Космічний бій"),
+        KeyboardButton(text="🚀 Навігація")
+    )
+    builder.row(
+        KeyboardButton(text="🔬 Лабораторія"),
+        KeyboardButton(text="🎲 Розваги")
+    )
+    
+    # Кнопки на всю ширину (окремими рядками)
+    builder.row(
+        KeyboardButton(
+            text="💬 Зв'язок з розробником", 
+            web_app=WebAppInfo(url=f"{WEB_APP_URL}/feedback.html")
+        )
+    )
+    builder.row(
+        KeyboardButton(text="❌ Покинути сім'ю")
+    )
+
+    # Повертаємо готову клавіатуру
+    return builder.as_markup(resize_keyboard=True)
 
 def main_keyboard():
     """Заглушка для сумісності з іншими модулями"""

@@ -15,6 +15,7 @@ db = Database('space.db')
 class FamilyStates(StatesGroup):
     waiting_for_name = State()
     waiting_for_code = State()
+    waiting_for_chat_msg = State()
 
 
 @router.message(F.text == "🚀 Створити сім'ю")
@@ -40,9 +41,13 @@ async def start_join_family(message: types.Message, state: FSMContext):
 @router.message(FamilyStates.waiting_for_code)
 async def process_join_code(message: types.Message, state: FSMContext):
     db.add_user(message.from_user.id, message.from_user.username or "Recruit")
-    if db.join_family(message.from_user.id, message.text.upper().strip()):
+    success, status = db.join_family(message.from_user.id, message.text.upper().strip())
+    
+    if success:
         await state.clear()
-        await message.answer("Успіх!", reply_markup=get_main_kb_with_family())
+        await message.answer("Успіх! Ви приєдналися до сім'ї.", reply_markup=get_main_kb_with_family())
+    elif status == "full":
+        await message.answer("❌ Помилка. У цій сім'ї вже досягнуто ліміту учасників (4/4).")
     else:
         await message.answer("Помилка. Перевірте правильність коду.")
 
@@ -57,55 +62,31 @@ async def family_info(message: types.Message):
     family = db.get_family(fid)
     stats = db.get_ship_total_stats(fid)
     data = db.get_family_resources(fid)
-    
-    # Отримуємо список учасників сім'ї
     members = db.get_family_members(fid)
-    members_count = len(members)
+    members_count = len(members) # Отримуємо реальну кількість
     
-    # Формуємо красивий список юзерів
-    members_text = ""
-    for member in members:
-        username = member[0]
-        role = member[1]
-        
-        # Визначаємо іконку по ролі
-        role_icon = "👑" if role == 'captain' else "👨‍🚀"
-        
-        # Форматуємо тег (якщо це нормальний юзернейм, додаємо @)
-        if username and username not in ["Cap", "Recruit"]:
-            display_name = f"@{username}"
-        else:
-            # Якщо юзернейму немає або він дефолтний, виводимо як є, або id
-            display_name = str(username)
-            
-        members_text += f"{role_icon} {display_name}\n"
-    
-    MAX = 10000 
+    # Формуємо список учасників
+    members_list_text = ""
+    for m in members:
+        icon = "👑" if m[1] == 'captain' else "👨‍🚀"
+        name = f"@{m[0]}" if m[0] else "Анонім"
+        members_list_text += f"{icon} {name}\n"
 
+    MAX = 10000 
     text = (
         f"🌌 <b>КАБІНЕТ СІМ'Ї: {family[1]}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
-        f"🔑 <b>Код для вступу:</b> <tg-spoiler><code>{family[2]}</code></tg-spoiler>\n"
-        f"👥 <b>Учасники ({members_count}):</b>\n"
-        f"{members_text}"
+        f"🔑 <b>Код:</b> <code>{family[2]}</code>\n"
+        f"👥 <b>Учасники ({members_count}/4):</b>\n" # Додано ліміт /4
+        f"{members_list_text}"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
         f"📊 <b>Характеристики корабля:</b>\n"
-        f"🚀 Швидкість: <b>{stats['speed']}</b>\n"
+        f"🚀 Швидкість: <b>{stats['speed']}</b> | ⚔️ Урон: <b>{stats['damage']}</b>\n"
         f"🛡️ Захист: <b>{stats['armor']}</b>\n"
-        f"🌬️ Аеро: <b>{stats['aerodynamics']}</b>\n"
-        f"🕹️ Маневр: <b>{stats['handling']}</b>\n"
-        f"⚔️ Урон: <b>{stats['damage']}</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📦 <b>Склад ресурсів:</b>\n"
-        f"🔩 Залізо: <b>{data[1]}/{MAX}</b> | ⛽ Паливо: <b>{data[2]}/{MAX}</b>\n"
-        f"🌑 Реголіт: <b>{data[3]}/{MAX}</b> | ⚛️ Гелій-3: <b>{data[4]}/{MAX}</b>\n"
-        f"💾 Кремній: <b>{data[5]}/{MAX}</b> | 🧪 Оксид: <b>{data[6]}/{MAX}</b>\n"
-        f"🌫 Водень: <b>{data[7]}/{MAX}</b> | 🎈 Гелій: <b>{data[8]}/{MAX}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
         f"💰 Баланс: <b>{data[0]}</b> монет\n"
         f"🌍 Локація: <b>{data[11]}</b>"
     )
-    
     await message.answer(text, parse_mode="HTML")
 
 @router.message(F.text == "🛸 Ангар (Веб)")
@@ -180,3 +161,36 @@ async def execute_leave_action(call: CallbackQuery):
         reply_markup=get_main_kb_no_family()
     )
     await call.answer()
+
+@router.message(F.text == "💬 Чат сім'ї")
+async def start_family_chat(message: types.Message, state: FSMContext):
+    fid = db.get_user_family(message.from_user.id)
+    if not fid: return
+    
+    await state.set_state(FamilyStates.waiting_for_chat_msg)
+    await message.answer("Напишіть повідомлення, яке побачать всі члени вашої сім'ї:")
+
+@router.message(FamilyStates.waiting_for_chat_msg)
+async def broadcast_family_message(message: types.Message, state: FSMContext):
+    fid = db.get_user_family(message.from_user.id)
+    text = message.text
+    sender = message.from_user.username or message.from_user.first_name
+    
+    # Отримуємо ID всіх членів сім'ї
+    member_ids = db.get_family_user_ids(fid)
+    
+    count = 0
+    for m_id in member_ids:
+        if m_id != message.from_user.id: # Не шлемо самому собі
+            try:
+                await message.bot.send_message(
+                    m_id, 
+                    f"💬 <b>[Чат Сім'ї] @{sender}:</b>\n{text}", 
+                    parse_mode="HTML"
+                )
+                count += 1
+            except:
+                continue # Якщо бот заблокований
+                
+    await state.clear()
+    await message.answer(f"✅ Повідомлення доставлено іншим учасникам ({count}).")
