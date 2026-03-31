@@ -2,6 +2,7 @@ import psycopg2
 import random
 import string
 import datetime
+import threading
 import os
 from config import CATALOG
 
@@ -15,6 +16,7 @@ class Database:
         self.connection = psycopg2.connect(DATABASE_URL)
         self.connection.autocommit = True
         self.cursor = self.connection.cursor()
+        self.lock = threading.Lock()
         self.create_tables()
 
     def create_tables(self):
@@ -756,41 +758,43 @@ class Database:
 
     # --- СІМЕЙНИЙ ВЕБ-ЧАТ ---
     # --- СІМЕЙНИЙ ВЕБ-ЧАТ ---
+    # --- СІМЕЙНИЙ ВЕБ-ЧАТ ---
     def get_family_members_status(self, family_id):
-        """Повертає учасників і перевіряє, чи були вони активні останні 2 хвилини"""
-        with self.connection:
-            self.cursor.execute("""
-                SELECT user_id, username, role, 
-                       (CURRENT_TIMESTAMP - last_active) < INTERVAL '2 minutes' AS is_online
-                FROM users 
-                WHERE family_id = %s
-            """, (family_id,))
-            return self.cursor.fetchall()
+        with self.lock: # <- ДОДАНО
+            with self.connection:
+                self.cursor.execute("""
+                    SELECT user_id, username, role, 
+                           (CURRENT_TIMESTAMP - last_active) < INTERVAL '2 minutes' AS is_online
+                    FROM users 
+                    WHERE family_id = %s
+                """, (family_id,))
+                return self.cursor.fetchall()
             
     def ping_user_activity(self, user_id):
-        """Оновлює час останньої активності користувача"""
-        with self.connection:
-            self.cursor.execute("UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE user_id = %s", (user_id,))
+        with self.lock: # <- ДОДАНО
+            with self.connection:
+                self.cursor.execute("UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE user_id = %s", (user_id,))
 
     def add_chat_message(self, family_id, user_id, username, text):
-        with self.connection:
-            self.cursor.execute("""
-                INSERT INTO family_messages (family_id, user_id, username, text)
-                VALUES (%s, %s, %s, %s)
-            """, (family_id, user_id, username, text))
+        with self.lock: # <- ДОДАНО
+            with self.connection:
+                self.cursor.execute("""
+                    INSERT INTO family_messages (family_id, user_id, username, text)
+                    VALUES (%s, %s, %s, %s)
+                """, (family_id, user_id, username, text))
 
     def get_chat_messages(self, family_id, limit=50):
-        """Отримує останні 50 повідомлень"""
-        with self.connection:
-            self.cursor.execute("""
-                SELECT user_id, username, text, created_at
-                FROM (
+        with self.lock: # <- ДОДАНО
+            with self.connection:
+                self.cursor.execute("""
                     SELECT user_id, username, text, created_at
-                    FROM family_messages
-                    WHERE family_id = %s
-                    ORDER BY created_at DESC
-                    LIMIT %s
-                ) AS sub
-                ORDER BY created_at ASC
-            """, (family_id, limit))
-            return self.cursor.fetchall()
+                    FROM (
+                        SELECT user_id, username, text, created_at
+                        FROM family_messages
+                        WHERE family_id = %s
+                        ORDER BY created_at DESC
+                        LIMIT %s
+                    ) AS sub
+                    ORDER BY created_at ASC
+                """, (family_id, limit))
+                return self.cursor.fetchall()
