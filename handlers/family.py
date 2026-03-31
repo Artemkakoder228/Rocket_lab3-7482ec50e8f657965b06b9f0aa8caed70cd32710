@@ -58,13 +58,36 @@ async def family_info(message: types.Message):
     stats = db.get_ship_total_stats(fid)
     data = db.get_family_resources(fid)
     
+    # Отримуємо список учасників сім'ї
+    members = db.get_family_members(fid)
+    members_count = len(members)
+    
+    # Формуємо красивий список юзерів
+    members_text = ""
+    for member in members:
+        username = member[0]
+        role = member[1]
+        
+        # Визначаємо іконку по ролі
+        role_icon = "👑" if role == 'captain' else "👨‍🚀"
+        
+        # Форматуємо тег (якщо це нормальний юзернейм, додаємо @)
+        if username and username not in ["Cap", "Recruit"]:
+            display_name = f"@{username}"
+        else:
+            # Якщо юзернейму немає або він дефолтний, виводимо як є, або id
+            display_name = str(username)
+            
+        members_text += f"{role_icon} {display_name}\n"
+    
     MAX = 10000 
 
-    # Використовуємо HTML для створення ефекту спойлера <tg-spoiler> та копіювання <code>
     text = (
         f"🌌 <b>КАБІНЕТ СІМ'Ї: {family[1]}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
         f"🔑 <b>Код для вступу:</b> <tg-spoiler><code>{family[2]}</code></tg-spoiler>\n"
+        f"👥 <b>Учасники ({members_count}):</b>\n"
+        f"{members_text}"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
         f"📊 <b>Характеристики корабля:</b>\n"
         f"🚀 Швидкість: <b>{stats['speed']}</b>\n"
@@ -82,7 +105,7 @@ async def family_info(message: types.Message):
         f"💰 Баланс: <b>{data[0]}</b> монет\n"
         f"🌍 Локація: <b>{data[11]}</b>"
     )
-    # Обов'язково вказуємо parse_mode="HTML"
+    
     await message.answer(text, parse_mode="HTML")
 
 @router.message(F.text == "🛸 Ангар (Веб)")
