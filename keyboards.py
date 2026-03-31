@@ -22,7 +22,7 @@ def get_main_kb_with_family() -> ReplyKeyboardMarkup:
         KeyboardButton(text="🛸 Ангар (Веб)")
     )
     builder.row(
-        KeyboardButton(text="💬 Чат сім'ї", web_app=WebAppInfo(url=f"{WEB_APP_URL}/chat.html")),
+        KeyboardButton(text="💬 Чат сім'ї"),
         KeyboardButton(text="⚔️ Рейд")
     )
     builder.row(

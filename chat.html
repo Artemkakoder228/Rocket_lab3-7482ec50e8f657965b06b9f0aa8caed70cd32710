@@ -83,10 +83,18 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        const user = tg.initDataUnsafe?.user;
-        const myUserId = user ? String(user.id) : "0";
-        const myUsername = user ? (user.username || user.first_name) : "Анонім";
-        let myFamilyId = null;
+        // 1. Найнадійніший спосіб: беремо ID прямо з посилання, яке згенерував бот
+        const urlParams = new URLSearchParams(window.location.search);
+        let myUserId = urlParams.get('user_id');
+        let myFamilyId = urlParams.get('family_id');
+
+        // 2. Резервний варіант (якщо раптом параметрів немає)
+        if (!myUserId) {
+            const user = tg.initDataUnsafe?.user;
+            myUserId = user ? String(user.id) : "0";
+        }
+        
+        const myUsername = tg.initDataUnsafe?.user ? (tg.initDataUnsafe.user.username || tg.initDataUnsafe.user.first_name) : "Анонім";
 
         const chatBox = document.getElementById('chat');
         const familyNameEl = document.getElementById('family-name');
@@ -98,6 +106,7 @@
 
         async function initChat() {
             try {
+                // Використовуємо myUserId, який ми 100% отримали з URL
                 const res = await fetch(`/api/chat/init?user_id=${myUserId}`);
                 const data = await res.json();
                 if (data.error) {
@@ -105,7 +114,12 @@
                     onlineCountEl.innerText = data.error;
                     return;
                 }
-                myFamilyId = data.family_id;
+                
+                // Якщо сервер підтвердив family_id, оновлюємо його
+                if (data.family_id) {
+                    myFamilyId = data.family_id;
+                }
+                
                 familyNameEl.innerText = data.family_name;
                 
                 syncChat(); // Перше завантаження
@@ -123,7 +137,7 @@
                 updateMembers(data.members);
 
                 // 2. Оновлення повідомлень
-                if (data.messages.length !== lastMessageCount) {
+                if (data.messages && data.messages.length !== lastMessageCount) {
                     renderMessages(data.messages);
                     lastMessageCount = data.messages.length;
                 }
@@ -131,6 +145,7 @@
         }
 
         function updateMembers(members) {
+            if (!members) return;
             let onlineCount = 0;
             membersListEl.innerHTML = '';
             

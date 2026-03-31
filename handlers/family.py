@@ -6,6 +6,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from database import Database
 from config import WEB_APP_URL
 import urllib.parse
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from keyboards import get_main_kb_with_family, get_main_kb_no_family
 
 router = Router()
@@ -175,12 +176,22 @@ async def execute_leave_action(call: CallbackQuery):
     await call.answer()
 
 @router.message(F.text == "💬 Чат сім'ї")
-async def start_family_chat(message: types.Message, state: FSMContext):
+async def open_family_chat(message: types.Message):
+    # Спочатку перевіряємо, чи є користувач у сім'ї
     fid = db.get_user_family(message.from_user.id)
-    if not fid: return
+    if not fid:
+        await message.answer("❌ Ви не перебуваєте в сім'ї!")
+        return
+        
+    # Створюємо inline-кнопку і передаємо точні параметри в URL
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="📱 Відкрити Чат", 
+            web_app=WebAppInfo(url=f"{WEB_APP_URL}/chat.html?user_id={message.from_user.id}&family_id={fid}")
+        )]
+    ])
     
-    await state.set_state(FamilyStates.waiting_for_chat_msg)
-    await message.answer("Напишіть повідомлення, яке побачать всі члени вашої сім'ї:")
+    await message.answer("Натисніть кнопку нижче, щоб увійти в захищений канал зв'язку вашої сім'ї:", reply_markup=kb)
 
 @router.message(FamilyStates.waiting_for_chat_msg)
 async def broadcast_family_message(message: types.Message, state: FSMContext):
