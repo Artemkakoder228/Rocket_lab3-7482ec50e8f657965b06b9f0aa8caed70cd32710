@@ -19,22 +19,26 @@
         #map-viewport:active { cursor: grabbing; }
 
         /* Сама велика карта (2000x2000), яку ми рухаємо */
-        #map-content {
+       #map-content {
             width: 2000px; height: 2000px; position: absolute; transform-origin: 0 0;
-            background-size: cover; background-position: center;
-            /* Додаємо тактичну сітку поверх фону */
-            background-image: 
-                linear-gradient(rgba(0, 243, 255, 0.1) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 243, 255, 0.1) 1px, transparent 1px);
-            background-size: 100px 100px;
+            /* РОБИМО ФОН, ЩО ПОВТОРЮЄТЬСЯ */
+            background-repeat: repeat;
+            background-size: 500px 500px; /* Розмір однієї плитки фону */
             box-shadow: inset 0 0 150px rgba(0,0,0,1);
             will-change: transform;
         }
-
-        /* Фон самої планети (лежить під сіткою) */
+     
         #planet-bg {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
-            background-size: cover; opacity: 0.6; pointer-events: none;
+            background-repeat: repeat; /* Повторення текстури планети */
+            background-size: 800px 800px; 
+            opacity: 0.5; pointer-events: none;
+        }
+
+         /* Додаємо невелике затінення по краях вікна, щоб не було видно різких переходів */
+        #map-viewport::after {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none; box-shadow: inset 0 0 100px rgba(0,0,0,0.8);
         }
 
         /* HUD - Інтерфейс зверху (Фіксований) */
@@ -277,7 +281,11 @@
                 document.getElementById('hud-power').innerText = `Рівень флоту: ${data.my_power}`;
                 
                 const p = data.planet.toLowerCase();
-                planetBg.style.backgroundImage = `url('images/raid_bg_${p}.png')`;
+                
+                // Встановлюємо фон, що повторюється, на обидва шари
+                const bgUrl = `url('images/raid_bg_${p}.png')`;
+                mapContent.style.backgroundImage = bgUrl;
+                planetBg.style.backgroundImage = bgUrl;
 
                 if (data.targets.length === 0) {
                     const msg = document.createElement('div');
@@ -287,43 +295,24 @@
                     return;
                 }
 
-                // Розкидаємо цілі так, щоб вони не перекривали одна одну
+                // Просто малюємо бази (координати вже вирахувані сервером і є унікальними для кожної сім'ї)
                 data.targets.forEach(target => {
-                    let placedSafely = false;
-                    let top, left;
-                    let attempts = 0;
-
-                    while (!placedSafely && attempts < 150) {
-                        // Відступ від країв карти (від 10% до 90% простору)
-                        left = Math.floor(Math.random() * (MAP_SIZE - 400)) + 200;
-                        top = Math.floor(Math.random() * (MAP_SIZE - 400)) + 200;
-
-                        placedSafely = true;
-                        for (let pos of placedColonies) {
-                            const dist = Math.hypot(pos.left - left, pos.top - top);
-                            if (dist < MIN_DISTANCE) {
-                                placedSafely = false; break;
-                            }
-                        }
-                        attempts++;
-                    }
-
-                    if (placedSafely) {
-                        placedColonies.push({top, left});
-                        createMarker(target, top, left);
-                    }
+                    createMarker(target);
                 });
 
             } catch (err) {
                 document.getElementById('loader').innerText = "ПОМИЛКА ЗВ'ЯЗКУ";
+                console.error("Fetch Error:", err);
             }
         }
 
-        function createMarker(target, top, left) {
+        function createMarker(target) {
             const marker = document.createElement('div');
             marker.className = 'colony-marker';
-            marker.style.top = top + 'px';
-            marker.style.left = left + 'px';
+            
+            // Використовуємо ФІКСОВАНІ координати, які прислав сервер
+            marker.style.top = target.y + 'px';
+            marker.style.left = target.x + 'px';
             
             marker.innerHTML = `
                 <div class="colony-icon"><span>🏭</span></div>

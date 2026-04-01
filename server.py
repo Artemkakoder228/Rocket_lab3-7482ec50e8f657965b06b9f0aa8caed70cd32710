@@ -462,8 +462,10 @@ import math # Переконайтеся, що на початку файлу є
 
 @app.route('/api/raid/targets', methods=['GET'])
 def get_raid_targets():
-    family_id = request.args.get('family_id')
-    if not family_id: return jsonify({'error': 'No family_id'})
+    family_id_raw = request.args.get('family_id')
+    if not family_id_raw: return jsonify({'error': 'No family_id'})
+    
+    family_id = int(family_id_raw)
     
     try:
         my_info = db.get_family_resources(family_id)
@@ -473,60 +475,61 @@ def get_raid_targets():
         my_stats = db.get_ship_total_stats(family_id)
         my_power = sum(my_stats.values())
         
+        # ЛОГІКА СЕКТОРІВ (Інстансів):
+        # Ділимо всіх гравців на планеті на групи по 10 за їхнім ID
         with db.connection:
-            db.cursor.execute("""
-                SELECT id, name, balance 
-                FROM families 
-                WHERE current_planet = %s AND id != %s
-                  AND (shield_until IS NULL OR shield_until <= CURRENT_TIMESTAMP)
-            """, (my_planet, family_id))
-            potential_targets = db.cursor.fetchall()
+            # Отримуємо ВСІХ на цій планеті
+            db.cursor.execute("SELECT id, name, balance FROM families WHERE current_planet = %s ORDER BY id", (my_planet,))
+            all_on_planet = db.cursor.fetchall()
         
+        # Знаходимо індекс нашої сім'ї та визначаємо межі "сектору" (групи по 10)
+        my_index = next((i for i, f in enumerate(all_on_planet) if f[0] == family_id), 0)
+        sector_start = (my_index // 10) * 10
+        sector_families = all_on_planet[sector_start : sector_start + 10]
+
         targets = []
-        for t in potential_targets:
-            t_id = t[0]
+        for f in sector_families:
+            t_id = f[0]
+            if t_id == family_id: continue # Не показуємо самих себе як ціль
+            
             t_stats = db.get_ship_total_stats(t_id)
             t_power = sum(t_stats.values())
             
-            # Імітуємо "Рівень шахти" на основі загальної міці (наприклад, 1 рівень за кожні 15 міці)
-            # Якщо у вас в БД є реальна колонка для шахти - можна замінити t_power // 15 на неї
-            mine_level = max(1, t_power // 15)
+            # Отримуємо СПРАВЖНІЙ рівень шахти
+            mine_lvl = db.get_family_mine_level(t_id)
             
-            # Розрахунок шансу на успіх (у відсотках)
-            if my_power == 0 and t_power == 0:
-                win_chance = 50
-            elif my_power == 0:
-                win_chance = 5
+            # Фіксовані координати на карті 2000x2000
+            # Використовуємо ID цілі як зерно для рандому, щоб координати не змінювались
+            seed_rng = random.Random(t_id)
+            pos_x = seed_rng.randint(250, 1750)
+            pos_y = seed_rng.randint(250, 1750)
+
+            # Шанс перемоги
+            if my_power == 0 and t_power == 0: win_chance = 50
             else:
-                # Формула: Моя сила / (Моя сила + Сила ворога) * 100
-                chance = (my_power / (my_power + t_power)) * 100
+                chance = (my_power / (my_power + t_power + 1)) * 100
                 win_chance = min(95, max(5, int(chance)))
 
-            # Час рейду: від 3 до 15 хвилин (залежить від рандому "відстані")
-            raid_time_mins = random.randint(3, 15)
-            
-            # Фільтр: показуємо тільки тих, хто підходить по силі (різниця не більше 40%)
-            if my_power == 0 or (abs(my_power - t_power) / max(my_power, 1)) < 0.4:
-                targets.append({
-                    'id': t_id,
-                    'name': t[1],
-                    'power': t_power,
-                    'mine_level': mine_level,
-                    'win_chance': win_chance,
-                    'raid_time': raid_time_mins,
-                    'loot_coins': int(t[2] * random.uniform(0.1, 0.15))
-                })
+            targets.append({
+                'id': t_id,
+                'name': f[1],
+                'power': t_power,
+                'mine_level': mine_lvl,
+                'win_chance': win_chance,
+                'raid_time': seed_rng.randint(5, 12), # Фіксований час рейду для цієї бази
+                'loot_coins': int(f[2] * 0.1),
+                'x': pos_x,
+                'y': pos_y
+            })
                 
-        random.shuffle(targets)
         return jsonify({
             'planet': my_planet, 
             'my_power': my_power, 
-            'targets': targets[:10] # Змінили з 8 на 10 (максимум 10 сімей на карті)
+            'targets': targets
         })
     except Exception as e:
         print("RAID GET ERROR:", e)
         return jsonify({'error': 'Server error'}), 500
-
 
 @app.route('/api/raid/attack', methods=['POST'])
 def attack_target():

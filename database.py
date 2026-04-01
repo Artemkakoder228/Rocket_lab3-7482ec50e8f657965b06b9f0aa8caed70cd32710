@@ -289,6 +289,16 @@ class Database:
             res = self.cursor.fetchone()
             return res[0] if res else None
 
+    def get_family_mine_level(self, family_id):
+        """Отримує реальний рівень шахти сім'ї (макс 10)"""
+        with self.lock:
+            with self.connection:
+                # ПРИПУЩЕННЯ: рівень шахти в колонці mine_level таблиці families
+                # Якщо назва інша — змініть її тут
+                self.cursor.execute("SELECT COALESCE(mine_level, 1) FROM families WHERE id = %s", (family_id,))
+                res = self.cursor.fetchone()
+                return res[0] if res else 1
+
     def join_family(self, user_id, invite_code):
         with self.connection:
             self.cursor.execute("SELECT id FROM families WHERE invite_code = %s", (invite_code,))
