@@ -289,15 +289,24 @@ class Database:
             res = self.cursor.fetchone()
             return res[0] if res else None
 
-    def get_family_mine_level(self, family_id):
-        """Отримує реальний рівень шахти сім'ї (макс 10)"""
+    def get_family_mine_level(self, family_id, planet_name):
+        """Отримує реальний рівень шахти сім'ї для поточної планети"""
+        column_name = f"mine_lvl_{planet_name.lower()}"
+        
+        # Перевірка на всяк випадок, щоб не було SQL-ін'єкцій
+        if planet_name.lower() not in ['earth', 'moon', 'mars', 'jupiter']:
+            return 1
+            
         with self.lock:
             with self.connection:
-                # ПРИПУЩЕННЯ: рівень шахти в колонці mine_level таблиці families
-                # Якщо назва інша — змініть її тут
-                self.cursor.execute("SELECT COALESCE(mine_level, 1) FROM families WHERE id = %s", (family_id,))
-                res = self.cursor.fetchone()
-                return res[0] if res else 1
+                try:
+                    self.cursor.execute(f"SELECT COALESCE({column_name}, 1) FROM families WHERE id = %s", (family_id,))
+                    res = self.cursor.fetchone()
+                    return res[0] if res else 1
+                except Exception as e:
+                    self.connection.rollback()
+                    print(f"Помилка отримання шахти: {e}")
+                    return 1
 
     def join_family(self, user_id, invite_code):
         with self.connection:

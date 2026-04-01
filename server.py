@@ -494,7 +494,7 @@ def get_raid_targets():
             t_stats = db.get_ship_total_stats(t_id)
             t_power = sum(t_stats.values())
             
-            mine_lvl = db.get_family_mine_level(t_id)
+            mine_lvl = db.get_family_mine_level(t_id, my_planet)
             
             seed_rng = random.Random(t_id)
             pos_x = seed_rng.randint(250, 1750)
