@@ -458,24 +458,22 @@ def investigate():
         print(f"CRITICAL SERVER ERROR: {e}")
         return jsonify({'error': 'Внутрішня помилка сервера'}), 500
     
+import math # Переконайтеся, що на початку файлу є цей імпорт
+
 @app.route('/api/raid/targets', methods=['GET'])
 def get_raid_targets():
     family_id = request.args.get('family_id')
     if not family_id: return jsonify({'error': 'No family_id'})
     
     try:
-        # 1. Отримуємо інфо про атакуючого (на якій планеті він зараз)
         my_info = db.get_family_resources(family_id)
         if not my_info: return jsonify({'error': 'Family not found'})
         my_planet = my_info[11] 
         
-        # Вираховуємо бойову міць атакуючого
         my_stats = db.get_ship_total_stats(family_id)
         my_power = sum(my_stats.values())
         
-        # 2. Шукаємо інші колонії на ЦІЙ ЖЕ планеті
         with db.connection:
-            # Беремо тих, хто не під щитом і не є нашою сім'єю
             db.cursor.execute("""
                 SELECT id, name, balance 
                 FROM families 
@@ -490,23 +488,40 @@ def get_raid_targets():
             t_stats = db.get_ship_total_stats(t_id)
             t_power = sum(t_stats.values())
             
-            # 3. Фільтр "подібних характеристик"
-            # Для балансу показуємо ворогів, сила яких відрізняється не більше ніж на 50% 
-            # (або якщо міць 0, то показуємо всіх початківців)
-            if my_power == 0 or (abs(my_power - t_power) / max(my_power, 1)) < 0.5:
+            # Імітуємо "Рівень шахти" на основі загальної міці (наприклад, 1 рівень за кожні 15 міці)
+            # Якщо у вас в БД є реальна колонка для шахти - можна замінити t_power // 15 на неї
+            mine_level = max(1, t_power // 15)
+            
+            # Розрахунок шансу на успіх (у відсотках)
+            if my_power == 0 and t_power == 0:
+                win_chance = 50
+            elif my_power == 0:
+                win_chance = 5
+            else:
+                # Формула: Моя сила / (Моя сила + Сила ворога) * 100
+                chance = (my_power / (my_power + t_power)) * 100
+                win_chance = min(95, max(5, int(chance)))
+
+            # Час рейду: від 3 до 15 хвилин (залежить від рандому "відстані")
+            raid_time_mins = random.randint(3, 15)
+            
+            # Фільтр: показуємо тільки тих, хто підходить по силі (різниця не більше 40%)
+            if my_power == 0 or (abs(my_power - t_power) / max(my_power, 1)) < 0.4:
                 targets.append({
                     'id': t_id,
                     'name': t[1],
                     'power': t_power,
-                    'loot_coins': int(t[2] * 0.1) # Показуємо, що можна вкрасти ~10% їхнього балансу
+                    'mine_level': mine_level,
+                    'win_chance': win_chance,
+                    'raid_time': raid_time_mins,
+                    'loot_coins': int(t[2] * random.uniform(0.1, 0.15))
                 })
                 
-        # Перемішуємо і віддаємо максимум 5 цілей для радару
         random.shuffle(targets)
         return jsonify({
             'planet': my_planet, 
             'my_power': my_power, 
-            'targets': targets[:5]
+            'targets': targets[:10] # Змінили з 8 на 10 (максимум 10 сімей на карті)
         })
     except Exception as e:
         print("RAID GET ERROR:", e)
@@ -519,52 +534,44 @@ def attack_target():
     attacker_id = data.get('family_id')
     user_id = data.get('user_id')
     target_id = data.get('target_id')
+    raid_time = data.get('raid_time', 5) # Отримуємо час рейду
     
     try:
-        # 1. Отримуємо бойову міць обох сторін
         my_stats = db.get_ship_total_stats(attacker_id)
         target_stats = db.get_ship_total_stats(target_id)
-        
         my_power = sum(my_stats.values())
         target_power = sum(target_stats.values())
         
-        # 2. Розраховуємо переможця (з додаванням випадковості +/- 20% до сили)
         my_roll = my_power * random.uniform(0.8, 1.2)
         target_roll = target_power * random.uniform(0.8, 1.2)
         
         with db.connection:
             db.cursor.execute("SELECT balance, name FROM families WHERE id = %s", (target_id,))
             target_data = db.cursor.fetchone()
-            target_balance = target_data[0]
-            target_name = target_data[1]
+            target_balance, target_name = target_data[0], target_data[1]
             
         loot = 0
         win = False
         
         if my_roll >= target_roll:
             win = True
-            # Якщо перемога - крадемо від 10% до 15% грошей цілі
             loot = int(target_balance * random.uniform(0.1, 0.15)) 
             
             with db.connection:
-                # Знімаємо з цілі
                 db.cursor.execute("UPDATE families SET balance = balance - %s WHERE id = %s", (loot, target_id))
-                # Даємо цілі щит на 4 години, щоб її не "забили" інші
                 shield_time = datetime.datetime.now() + datetime.timedelta(hours=4)
                 db.cursor.execute("UPDATE families SET shield_until = %s WHERE id = %s", (shield_time, target_id))
-                
-                # Зараховуємо лут атакуючому
                 db.cursor.execute("UPDATE families SET balance = balance + %s WHERE id = %s", (loot, attacker_id))
                 
-                # Встановлюємо кулдаун на атаки для нас (наприклад, 1 година)
-                cooldown_time = datetime.datetime.now() + datetime.timedelta(hours=1)
+                # Кулдаун на наступну атаку дорівнює часу польоту туди і назад
+                cooldown_time = datetime.datetime.now() + datetime.timedelta(minutes=raid_time * 2)
                 db.cursor.execute("UPDATE families SET last_raid_time = %s WHERE id = %s", (cooldown_time, attacker_id))
+                db.connection.commit()
                 
-            msg = f"⚔️ <b>Успішний Рейд!</b>\nВи розгромили колонію <b>{target_name}</b> і викрали <b>{loot}</b> 🪙!"
+            msg = f"⚔️ <b>Успішний Рейд!</b>\nРейд тривав {raid_time} хв. Ви розгромили колонію <b>{target_name}</b> і викрали <b>{loot}</b> 🪙!"
         else:
-            msg = f"💥 <b>Поразка...</b>\nОборона колонії <b>{target_name}</b> виявилась сильнішою. Ваш флот відступив."
+            msg = f"💥 <b>Поразка...</b>\nОборона колонії <b>{target_name}</b> виявилась сильнішою. Ваш флот відступив з ганьбою."
         
-        # 3. Відправляємо результат у Telegram гравцю
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
         requests.post(url, json={"chat_id": user_id, "text": msg, "parse_mode": "HTML"})
         
@@ -573,8 +580,6 @@ def attack_target():
     except Exception as e:
         print("RAID ATTACK ERROR:", e)
         return jsonify({'error': 'Помилка бою'}), 500
-    
-# --- АПІ ДЛЯ СІМЕЙНОГО ЧАТУ ---
 
 # --- АПІ ДЛЯ СІМЕЙНОГО ЧАТУ ---
 

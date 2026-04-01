@@ -3,160 +3,375 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Радар Рейдів</title>
+    <title>Тактична Карта Рейдів</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { 
-            text-align: center; color: white; display: flex; flex-direction: column; 
-            align-items: center; min-height: 95vh; padding: 20px 0; overflow-x: hidden; 
-            background: radial-gradient(circle at center, #0a0f1e 0%, #000 100%); 
-            font-family: sans-serif;
-            margin: 0;
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #000; color: white; touch-action: none; /* Вимикаємо стандартний скрол */
         }
-        
-        .header-title { font-size: 26px; font-weight: bold; color: #ff3232; text-shadow: 0 0 15px rgba(255, 50, 50, 0.8); letter-spacing: 2px; margin-top: 10px;}
-        .subtitle { color: #00f3ff; font-size: 14px; font-family: monospace; margin-bottom: 20px; }
 
-        /* Радар */
-        .radar-container {
-            position: relative; width: 150px; height: 150px; margin: 10px auto;
-            border-radius: 50%;
-            border: 2px solid rgba(0, 243, 255, 0.3);
+        /* Обгортка-вікно (те, що ми бачимо на екрані) */
+        #map-viewport {
+            width: 100vw; height: 100vh; position: relative; overflow: hidden; cursor: grab;
+        }
+        #map-viewport:active { cursor: grabbing; }
+
+        /* Сама велика карта (2000x2000), яку ми рухаємо */
+        #map-content {
+            width: 2000px; height: 2000px; position: absolute; transform-origin: 0 0;
+            background-size: cover; background-position: center;
+            /* Додаємо тактичну сітку поверх фону */
+            background-image: 
+                linear-gradient(rgba(0, 243, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 243, 255, 0.1) 1px, transparent 1px);
+            background-size: 100px 100px;
+            box-shadow: inset 0 0 150px rgba(0,0,0,1);
+            will-change: transform;
+        }
+
+        /* Фон самої планети (лежить під сіткою) */
+        #planet-bg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background-size: cover; opacity: 0.6; pointer-events: none;
+        }
+
+        /* HUD - Інтерфейс зверху (Фіксований) */
+        .hud-top {
+            position: fixed; top: 15px; left: 15px; right: 15px;
+            background: rgba(5, 10, 20, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 243, 255, 0.4); border-radius: 12px;
+            padding: 12px 20px; display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 5px 20px rgba(0, 243, 255, 0.15); z-index: 100;
+        }
+        .hud-top h3 { margin: 0; font-size: 15px; color: #00f3ff; letter-spacing: 2px;}
+        .hud-top p { margin: 2px 0 0; font-size: 12px; color: #a1b5cc; font-weight: bold;}
+
+        /* Маркер бази */
+        .colony-marker {
+            position: absolute; transform: translate(-50%, -50%);
+            display: flex; flex-direction: column; align-items: center;
+            cursor: pointer; z-index: 5;
+        }
+        .colony-icon {
+            width: 50px; height: 50px; background: rgba(255, 50, 50, 0.15);
+            border: 2px solid #ff3232; border-radius: 8px; transform: rotate(45deg);
             display: flex; justify-content: center; align-items: center;
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);
+            box-shadow: 0 0 20px rgba(255, 50, 50, 0.6), inset 0 0 10px rgba(255,50,50,0.4);
+            animation: pulse-base 2.5s infinite alternate; transition: 0.2s;
         }
-        .radar-sweep {
-            position: absolute; width: 50%; height: 2px;
-            background: linear-gradient(90deg, rgba(0,243,255,0) 0%, rgba(0,243,255,1) 100%);
-            top: 50%; left: 50%; transform-origin: 0% 50%;
-            animation: sweep 2s linear infinite;
-        }
-        @keyframes sweep { 100% { transform: rotate(360deg); } }
+        .colony-icon span { font-size: 22px; transform: rotate(-45deg); display: block;}
+        .colony-marker:active .colony-icon { background: rgba(255,50,50,0.5); transform: rotate(45deg) scale(0.9);}
 
-        /* Список цілей */
-        .targets-container {
-            width: 90%; max-width: 400px;
-            margin-top: 20px;
-            text-align: left;
+        .colony-name {
+            background: rgba(0,0,0,0.8); padding: 4px 10px; border-radius: 6px;
+            font-size: 14px; margin-top: 15px; color: #fff; border: 1px solid rgba(0, 243, 255, 0.3);
+            white-space: nowrap; font-weight: bold; letter-spacing: 1px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.8);
         }
-        
-        .target-card {
-            background: rgba(0, 243, 255, 0.05);
-            border: 1px solid rgba(0, 243, 255, 0.3);
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 15px;
-            display: flex; justify-content: space-between; align-items: center;
-            transition: 0.2s;
+        @keyframes pulse-base { to { box-shadow: 0 0 5px rgba(255, 50, 50, 0.3); } }
+
+        /* Модальне вікно (Деталі) */
+        #modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            display: none; justify-content: center; align-items: center; z-index: 200;
+            opacity: 0; transition: opacity 0.3s;
         }
-        .target-card:hover { border-color: #ff3232; background: rgba(255, 50, 50, 0.05); }
+        .target-modal {
+            background: #080c14; border: 1px solid #00f3ff; border-radius: 16px;
+            width: 85%; max-width: 340px; padding: 25px 20px;
+            box-shadow: 0 10px 40px rgba(0, 243, 255, 0.15);
+            transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative; overflow: hidden;
+        }
+        /* Декоративна лінія зверху вікна */
+        .target-modal::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #00f3ff, transparent); }
         
-        .target-info h4 { margin: 0 0 5px 0; color: #fff; font-size: 16px; }
-        .target-info p { margin: 2px 0; font-size: 13px; color: #aaa; font-family: monospace;}
-        .target-info span { color: #00f3ff; font-weight: bold; }
-        .target-info .loot { color: #ffd700; }
+        .modal-header { font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 20px; text-align: center; }
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 15px; background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;}
+        .stat-row span { color: #8ba4b8; }
+        .stat-row strong { color: #00f3ff; }
+        .stat-row .chance-high { color: #00ff88; text-shadow: 0 0 8px #00ff88;}
+        .stat-row .chance-med { color: #ffd700; text-shadow: 0 0 8px #ffd700;}
+        .stat-row .chance-low { color: #ff3232; text-shadow: 0 0 8px #ff3232;}
 
         .attack-btn {
-            background: #ff3232; color: white; border: none;
-            padding: 10px 15px; border-radius: 8px; font-weight: bold;
-            box-shadow: 0 0 10px rgba(255, 50, 50, 0.5); cursor: pointer;
+            width: 100%; padding: 16px; margin-top: 15px;
+            background: linear-gradient(90deg, #d30000, #ff3232, #d30000); background-size: 200% auto;
+            border: none; border-radius: 10px; color: white; font-weight: 800; font-size: 16px; letter-spacing: 1px;
+            box-shadow: 0 6px 20px rgba(255, 50, 50, 0.5); cursor: pointer; transition: 0.3s;
         }
         .attack-btn:active { transform: scale(0.95); }
-
-        .leave-btn { 
-            margin-top: 20px; width: 90%; max-width: 400px; padding: 15px; 
-            background: transparent; border: 1px solid #aaa; color: #aaa; 
-            border-radius: 10px; font-weight: bold; cursor: pointer; 
+        
+        .close-btn {
+            width: 100%; padding: 12px; margin-top: 10px; background: transparent;
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: #8ba4b8;
+            font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s;
         }
-        .loader { color: #00f3ff; font-family: monospace; font-size: 16px; margin: 20px 0; animation: pulse 1s infinite alternate;}
-        @keyframes pulse { to { opacity: 0.3; } }
+        .close-btn:active { background: rgba(255,255,255,0.1); }
 
+        #loader {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #00f3ff; font-family: monospace; font-size: 18px; text-align: center;
+            z-index: 500; text-shadow: 0 0 10px #00f3ff;
+        }
     </style>
 </head>
 <body>
-    
-    <div class="header-title">ТАКТИЧНИЙ РАДАР</div>
-    <div class="subtitle" id="status-text">▶ Встановлення зв'язку... ◀</div>
 
-    <div class="radar-container">
-        <div class="radar-sweep"></div>
-        <div style="font-size: 40px;" id="planet-icon">🌍</div>
+    <div id="map-viewport">
+        <div id="map-content">
+            <div id="planet-bg"></div>
+            </div>
     </div>
 
-    <div class="loader" id="loader">> Сканування сектору...</div>
-
-    <div class="targets-container" id="targets-list">
+    <div class="hud-top">
+        <div>
+            <h3 id="hud-planet">ПІДКЛЮЧЕННЯ...</h3>
+            <p id="hud-power">Сканування систем...</p>
         </div>
+        <button onclick="tg.close()" style="background:rgba(255,50,50,0.2); border:1px solid #ff3232; color:#ff3232; width: 40px; height: 40px; border-radius: 10px; font-size:22px; display:flex; justify-content:center; align-items:center;">×</button>
+    </div>
 
-    <button class="leave-btn" onclick="tg.close()">ВІДСТУПИТИ</button>
+    <div id="loader">🌍<br>Підключення до супутника...</div>
+
+    <div id="modal-overlay">
+        <div class="target-modal" id="modal-content">
+            <div class="modal-header" id="m-name">Колонія: Невідомо</div>
+            
+            <div class="stat-row"><span>🏭 Рівень шахти:</span> <strong id="m-mine">1</strong></div>
+            <div class="stat-row"><span>⚔️ Оборона:</span> <strong id="m-power">0</strong></div>
+            <div class="stat-row"><span>⏱️ Час рейду:</span> <strong id="m-time">0 хв</strong></div>
+            <div class="stat-row"><span>💰 Лут:</span> <strong style="color: #ffd700; text-shadow: 0 0 5px #ffd700;" id="m-loot">0 🪙</strong></div>
+            
+            <div class="stat-row" style="margin-top: 15px; border-top: 1px dashed rgba(0, 243, 255, 0.3); padding-top: 15px; background: transparent;">
+                <span>🎯 Шанс перемоги:</span> <strong id="m-chance">0%</strong>
+            </div>
+
+            <button class="attack-btn" id="m-attack-btn">🚀 АТАКУВАТИ</button>
+            <button class="close-btn" onclick="closeModal()">ВІДМІНА</button>
+        </div>
+    </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
+        tg.setHeaderColor('#050a14');
+        tg.setBackgroundColor('#000000');
 
         const urlParams = new URLSearchParams(window.location.search);
         const familyId = urlParams.get('family_id');
         const userId = urlParams.get('user_id');
 
-        const statusText = document.getElementById('status-text');
-        const targetsList = document.getElementById('targets-list');
-        const loader = document.getElementById('loader');
-        const planetIcon = document.getElementById('planet-icon');
+        const mapViewport = document.getElementById('map-viewport');
+        const mapContent = document.getElementById('map-content');
+        const planetBg = document.getElementById('planet-bg');
+        
+        const overlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        let currentTarget = null;
+
+        // --- ЛОГІКА КАМЕРИ (PAN & ZOOM) ---
+        const MAP_SIZE = 2000;
+        let scale = window.innerWidth / 1000; // Початковий масштаб під екран
+        scale = Math.max(0.5, Math.min(scale, 1.2)); // Обмежуємо початковий зум
+        
+        // Ставимо камеру по центру карти
+        let panX = (window.innerWidth - MAP_SIZE * scale) / 2;
+        let panY = (window.innerHeight - MAP_SIZE * scale) / 2;
+        
+        let isDragging = false;
+        let startX, startY;
+        let initialPinchDist = null;
+        let initialScale = 1;
+
+        function updateTransform() {
+            // Обмежуємо вихід за краї екрану
+            const maxPanX = window.innerWidth / 2;
+            const minPanX = window.innerWidth / 2 - MAP_SIZE * scale;
+            const maxPanY = window.innerHeight / 2;
+            const minPanY = window.innerHeight / 2 - MAP_SIZE * scale;
+
+            panX = Math.max(minPanX, Math.min(panX, maxPanX));
+            panY = Math.max(minPanY, Math.min(panY, maxPanY));
+
+            mapContent.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        }
+        updateTransform();
+
+        // Обробка дотиків (Pinch to Zoom + Pan)
+        mapViewport.addEventListener('touchstart', (e) => {
+            if(e.target.closest('.colony-marker')) return;
+            if (e.touches.length === 1) {
+                isDragging = true;
+                startX = e.touches[0].clientX - panX;
+                startY = e.touches[0].clientY - panY;
+            } else if (e.touches.length === 2) {
+                isDragging = false;
+                initialPinchDist = getDistance(e.touches);
+                initialScale = scale;
+            }
+        }, { passive: false });
+
+        mapViewport.addEventListener('touchmove', (e) => {
+            e.preventDefault(); // Вимикаємо системний скрол
+            if (e.touches.length === 1 && isDragging) {
+                panX = e.touches[0].clientX - startX;
+                panY = e.touches[0].clientY - startY;
+                updateTransform();
+            } else if (e.touches.length === 2) {
+                const currentDist = getDistance(e.touches);
+                const newScale = initialScale * (currentDist / initialPinchDist);
+                scale = Math.max(0.4, Math.min(newScale, 2.5)); // Межі зуму
+                updateTransform();
+            }
+        }, { passive: false });
+
+        mapViewport.addEventListener('touchend', () => {
+            isDragging = false;
+            initialPinchDist = null;
+        });
+
+        // Для ПК мишкою
+        mapViewport.addEventListener('mousedown', (e) => {
+            if(e.target.closest('.colony-marker')) return;
+            isDragging = true;
+            startX = e.clientX - panX;
+            startY = e.clientY - panY;
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            panX = e.clientX - startX;
+            panY = e.clientY - startY;
+            updateTransform();
+        });
+        window.addEventListener('mouseup', () => isDragging = false);
+        mapViewport.addEventListener('wheel', (e) => {
+            const zoomIntensity = 0.1;
+            if (e.deltaY < 0) scale *= (1 + zoomIntensity); else scale /= (1 + zoomIntensity);
+            scale = Math.max(0.4, Math.min(scale, 2.5));
+            updateTransform();
+        });
+
+        function getDistance(touches) {
+            return Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+        }
+        // --- КІНЕЦЬ ЛОГІКИ КАМЕРИ ---
+
+
+        // --- АЛГОРИТМ РОЗМІЩЕННЯ БАЗ ---
+        const placedColonies = [];
+        const MIN_DISTANCE = 300; // Мінімальна відстань між базами (в пікселях віртуальної карти)
 
         async function fetchTargets() {
             try {
-                // Сервер повинен бути на тій же адресі (відносний шлях)
                 const response = await fetch(`/api/raid/targets?family_id=${familyId}`);
                 const data = await response.json();
 
-                if (data.error) {
-                    statusText.innerText = `Помилка: ${data.error}`;
-                    loader.style.display = 'none';
-                    return;
-                }
+                document.getElementById('loader').style.display = 'none';
+                if (data.error) { alert(data.error); return; }
 
-                // Встановлюємо іконку планети
+                document.getElementById('hud-planet').innerText = `СЕКТОР: ${data.planet}`;
+                document.getElementById('hud-power').innerText = `Рівень флоту: ${data.my_power}`;
+                
                 const p = data.planet.toLowerCase();
-                if (p === 'earth') planetIcon.innerText = '🌍';
-                else if (p === 'moon') planetIcon.innerText = '🌑';
-                else if (p === 'mars') planetIcon.innerText = '🔴';
-                else if (p === 'jupiter') planetIcon.innerText = '🪐';
-
-                statusText.innerText = `▶ Сектор: ${data.planet.toUpperCase()} | Ваша міць: ${data.my_power} ◀`;
-                loader.style.display = 'none';
+                planetBg.style.backgroundImage = `url('images/raid_bg_${p}.png')`;
 
                 if (data.targets.length === 0) {
-                    targetsList.innerHTML = `<p style="text-align:center; color:#aaa;">У цьому секторі не виявлено гідних супротивників або всі вони знаходяться під енергетичним щитом.</p>`;
+                    const msg = document.createElement('div');
+                    msg.innerHTML = "СЕКТОР ПОРОЖНІЙ";
+                    msg.style.cssText = "position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#00f3ff; font-size:30px; font-weight:bold; letter-spacing:5px;";
+                    mapContent.appendChild(msg);
                     return;
                 }
 
-                // Малюємо картки
+                // Розкидаємо цілі так, щоб вони не перекривали одна одну
                 data.targets.forEach(target => {
-                    const card = document.createElement('div');
-                    card.className = 'target-card';
-                    card.innerHTML = `
-                        <div class="target-info">
-                            <h4>Колонія: ${target.name}</h4>
-                            <p>Міць оборони: <span>${target.power} ⚔️</span></p>
-                            <p>Можливий лут: <span class="loot">~${target.loot_coins} 🪙</span></p>
-                        </div>
-                        <button class="attack-btn" onclick="attack(${target.id}, this)">🚀 АТАКА</button>
-                    `;
-                    targetsList.appendChild(card);
+                    let placedSafely = false;
+                    let top, left;
+                    let attempts = 0;
+
+                    while (!placedSafely && attempts < 150) {
+                        // Відступ від країв карти (від 10% до 90% простору)
+                        left = Math.floor(Math.random() * (MAP_SIZE - 400)) + 200;
+                        top = Math.floor(Math.random() * (MAP_SIZE - 400)) + 200;
+
+                        placedSafely = true;
+                        for (let pos of placedColonies) {
+                            const dist = Math.hypot(pos.left - left, pos.top - top);
+                            if (dist < MIN_DISTANCE) {
+                                placedSafely = false; break;
+                            }
+                        }
+                        attempts++;
+                    }
+
+                    if (placedSafely) {
+                        placedColonies.push({top, left});
+                        createMarker(target, top, left);
+                    }
                 });
 
-                tg.HapticFeedback.notificationOccurred('success');
-
             } catch (err) {
-                loader.innerText = "> Помилка сканування радара!";
-                console.error(err);
+                document.getElementById('loader').innerText = "ПОМИЛКА ЗВ'ЯЗКУ";
             }
         }
 
-        async function attack(targetId, btnElement) {
-            btnElement.disabled = true;
-            btnElement.innerText = "БОЙОВА ТРИВОГА...";
-            btnElement.style.background = "#555";
+        function createMarker(target, top, left) {
+            const marker = document.createElement('div');
+            marker.className = 'colony-marker';
+            marker.style.top = top + 'px';
+            marker.style.left = left + 'px';
+            
+            marker.innerHTML = `
+                <div class="colony-icon"><span>🏭</span></div>
+                <div class="colony-name">${target.name}</div>
+            `;
+            
+            marker.onclick = () => openModal(target);
+            mapContent.appendChild(marker);
+        }
+
+        // --- ЛОГІКА БОЮ ТА МОДАЛОК ---
+        function openModal(target) {
+            currentTarget = target;
+            tg.HapticFeedback.selectionChanged();
+            
+            document.getElementById('m-name').innerText = `${target.name}`;
+            document.getElementById('m-mine').innerText = `${target.mine_level} рівень`;
+            document.getElementById('m-power').innerText = target.power;
+            document.getElementById('m-time').innerText = `${target.raid_time} хв`;
+            document.getElementById('m-loot').innerText = `~${target.loot_coins} 🪙`;
+            
+            const chanceEl = document.getElementById('m-chance');
+            chanceEl.innerText = `${target.win_chance}%`;
+            
+            chanceEl.className = '';
+            if (target.win_chance >= 65) chanceEl.classList.add('chance-high');
+            else if (target.win_chance >= 35) chanceEl.classList.add('chance-med');
+            else chanceEl.classList.add('chance-low');
+
+            overlay.style.display = 'flex';
+            setTimeout(() => {
+                overlay.style.opacity = '1';
+                modalContent.style.transform = 'scale(1)';
+            }, 10);
+        }
+
+        function closeModal() {
+            overlay.style.opacity = '0';
+            modalContent.style.transform = 'scale(0.9)';
+            setTimeout(() => { overlay.style.display = 'none'; }, 300);
+            currentTarget = null;
+        }
+
+        document.getElementById('m-attack-btn').onclick = async function() {
+            if (!currentTarget) return;
+            const btn = this;
+            btn.innerText = "ІНІЦІАЛІЗАЦІЯ...";
+            btn.disabled = true;
             tg.HapticFeedback.impactOccurred('heavy');
 
             try {
@@ -164,36 +379,29 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        family_id: familyId,
-                        user_id: userId,
-                        target_id: targetId
+                        family_id: familyId, user_id: userId,
+                        target_id: currentTarget.id, raid_time: currentTarget.raid_time
                     })
                 });
 
                 const data = await response.json();
                 
-                // Вібруємо залежно від результату
-                if(data.win) {
-                    tg.HapticFeedback.notificationOccurred('success');
-                } else {
-                    tg.HapticFeedback.notificationOccurred('error');
-                }
+                if(data.win) tg.HapticFeedback.notificationOccurred('success');
+                else tg.HapticFeedback.notificationOccurred('error');
 
-                // Закриваємо веб-додаток, бот надішле результат бою в чат
-                tg.showAlert("Бій завершено! Результати надіслані вам у закритий канал зв'язку (в чат бота).", () => {
+                tg.showAlert(`Флот відправлено на координати!\nОчікуваний час місії: ${currentTarget.raid_time} хв.\nКомандування відправить звіт у бот.`, () => {
                     tg.close();
                 });
 
             } catch (err) {
-                alert("Помилка зв'язку з командуванням.");
-                btnElement.disabled = false;
-                btnElement.innerText = "🚀 АТАКА";
+                alert("Помилка зв'язку з командуванням!");
+                btn.innerText = "🚀 АТАКУВАТИ";
+                btn.disabled = false;
             }
-        }
+        };
 
-        // Запускаємо сканування після невеликої затримки для краси
-        setTimeout(fetchTargets, 1500);
-
+        // Запуск радару
+        setTimeout(fetchTargets, 600);
     </script>
 </body>
 </html>

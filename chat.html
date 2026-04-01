@@ -6,65 +6,132 @@
     <title>Сімейний Чат</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { 
-            margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #0e1621; color: #fff; display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 243, 255, 0.3); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 243, 255, 0.6); }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: radial-gradient(circle at top center, #101935 0%, #040710 100%);
+            color: #fff; display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+            position: relative;
         }
-        
+
+        /* Animated noise background for space feel */
+        body::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.04"/></svg>');
+            pointer-events: none; z-index: 0;
+        }
+
         /* HEADER */
         .header {
-            background: #17212b; padding: 10px 15px; display: flex; align-items: center; justify-content: space-between;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3); z-index: 10;
+            background: rgba(11, 16, 33, 0.7); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            padding: 12px 20px; display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid rgba(0, 243, 255, 0.15);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4); z-index: 10;
         }
-        .header-info h2 { margin: 0; font-size: 18px; font-weight: 600; }
-        .header-info p { margin: 2px 0 0; font-size: 13px; color: #7f91a4; }
-        .online-dot { display: inline-block; width: 8px; height: 8px; background: #32c850; border-radius: 50%; margin-right: 5px; }
+        .header-info h2 { margin: 0; font-size: 18px; font-weight: 700; color: #00f3ff; text-shadow: 0 0 12px rgba(0, 243, 255, 0.4); letter-spacing: 0.5px;}
+        .header-info p { margin: 4px 0 0; font-size: 12px; color: #8ba4b8; display: flex; align-items: center; font-weight: 500;}
+        .online-dot { display: inline-block; width: 8px; height: 8px; background: #00ff88; border-radius: 50%; margin-right: 6px; box-shadow: 0 0 8px #00ff88;}
+
+        .header-icon {
+            font-size: 20px; width: 38px; height: 38px; background: rgba(0, 243, 255, 0.05); 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            border: 1px solid rgba(0, 243, 255, 0.3); cursor: pointer; transition: 0.2s;
+            box-shadow: inset 0 0 10px rgba(0,243,255,0.1);
+        }
+        .header-icon:active { transform: scale(0.9); background: rgba(0, 243, 255, 0.2); }
 
         /* CHAT AREA */
         .chat-container {
-            flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
+            flex-grow: 1; padding: 20px 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; z-index: 1;
         }
-        .message { max-width: 80%; padding: 8px 12px; border-radius: 12px; position: relative; font-size: 15px; line-height: 1.4; word-wrap: break-word; }
-        .message-time { font-size: 11px; color: rgba(255,255,255,0.5); float: right; margin: 5px 0 -5px 10px; }
-        .message-author { font-size: 13px; font-weight: bold; margin-bottom: 3px; }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message { 
+            max-width: 78%; padding: 10px 14px; position: relative; font-size: 15px; line-height: 1.4; word-wrap: break-word;
+            animation: slideIn 0.35s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .message-time { font-size: 10px; opacity: 0.6; float: right; margin: 6px 0 -4px 12px; }
+        .message-author { font-size: 12px; font-weight: 700; margin-bottom: 4px; letter-spacing: 0.3px;}
         
         /* My message */
-        .msg-self { align-self: flex-end; background: #2b5278; border-bottom-right-radius: 4px; }
-        .msg-self .message-author { display: none; } /* Не показуємо своє ім'я */
+        .msg-self { 
+            align-self: flex-end; 
+            background: linear-gradient(135deg, #005c99 0%, #0088cc 100%); 
+            border-radius: 18px 18px 4px 18px;
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 136, 204, 0.2);
+        }
+        .msg-self .message-author { display: none; } 
 
         /* Others message */
-        .msg-other { align-self: flex-start; background: #182533; border-bottom-left-radius: 4px; }
-        .msg-other .message-author { color: #64b5ef; }
+        .msg-other { 
+            align-self: flex-start; 
+            background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            border-radius: 18px 18px 18px 4px; 
+        }
+        .msg-other .message-author { color: #00f3ff; text-shadow: 0 0 5px rgba(0,243,255,0.3);}
 
         /* INPUT AREA */
         .input-area {
-            background: #17212b; padding: 10px; display: flex; align-items: center; gap: 10px;
+            background: rgba(11, 16, 33, 0.7); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            padding: 12px 15px; display: flex; align-items: center; gap: 10px; z-index: 10;
+            border-top: 1px solid rgba(0, 243, 255, 0.15);
+            padding-bottom: max(12px, env(safe-area-inset-bottom)); /* Для iPhone X і вище */
         }
         .input-box {
-            flex-grow: 1; background: #242f3d; border: none; padding: 12px 15px; border-radius: 20px;
-            color: #fff; font-size: 16px; outline: none;
+            flex-grow: 1; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(0, 243, 255, 0.2); 
+            padding: 12px 18px; border-radius: 24px; color: #fff; font-size: 15px; outline: none;
+            transition: all 0.3s ease; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
         }
-        .input-box::placeholder { color: #7f91a4; }
+        .input-box:focus { border-color: #00f3ff; box-shadow: 0 0 12px rgba(0, 243, 255, 0.2), inset 0 2px 5px rgba(0,0,0,0.5); }
+        .input-box::placeholder { color: #5c738a; }
+        
         .send-btn {
-            background: #5288c1; border: none; width: 42px; height: 42px; border-radius: 50%;
-            display: flex; justify-content: center; align-items: center; cursor: pointer; color: white; transition: 0.2s;
+            background: linear-gradient(45deg, #00f3ff, #0077ff); border: none; width: 44px; height: 44px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; cursor: pointer; color: white; 
+            transition: all 0.2s ease; box-shadow: 0 0 15px rgba(0, 243, 255, 0.4); flex-shrink: 0;
         }
-        .send-btn:active { transform: scale(0.9); background: #4676a9; }
+        .send-btn:active { transform: scale(0.9); box-shadow: 0 0 5px rgba(0, 243, 255, 0.4); }
+        .send-btn svg { width: 18px; height: 18px; transform: translateX(-1px) translateY(1px); stroke-width: 2.5;}
         
         /* Members list */
-        .members-popup { display: none; position: absolute; top: 60px; right: 10px; background: #17212b; border: 1px solid #242f3d; border-radius: 8px; padding: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 20; min-width: 150px;}
-        .member-item { display: flex; align-items: center; margin: 8px 0; font-size: 14px;}
-        .member-item.offline .online-dot { background: #7f91a4; }
+        .members-popup { 
+            display: none; position: absolute; top: 65px; right: 15px; 
+            background: rgba(11, 16, 33, 0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 14px; padding: 12px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8); z-index: 20; min-width: 170px;
+            animation: fadeInDown 0.2s ease forwards;
+        }
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .member-item { display: flex; align-items: center; margin: 12px 0; font-size: 14px; color: #e2e8f0; font-weight: 500;}
+        .member-item:first-child { margin-top: 5px; }
+        .member-item:last-child { margin-bottom: 5px; }
+        .member-item.offline .online-dot { background: #475569; box-shadow: none;}
 
     </style>
 </head>
 <body>
-    <div class="header" onclick="toggleMembers()">
+    <div class="header">
         <div class="header-info">
-            <h2 id="family-name">Завантаження...</h2>
-            <p><span class="online-dot"></span><span id="online-count">Підключення...</span></p>
+            <h2 id="family-name">Ініціалізація...</h2>
+            <p><span class="online-dot"></span><span id="online-count">Зв'язок із супутником...</span></p>
         </div>
-        <div style="font-size: 20px;">👥</div>
+        <div class="header-icon" onclick="toggleMembers()">👥</div>
     </div>
 
     <div class="members-popup" id="members-list"></div>
@@ -73,22 +140,22 @@
         </div>
 
     <div class="input-area">
-        <input type="text" class="input-box" id="msg-input" placeholder="Повідомлення..." autocomplete="off" onkeypress="handleEnter(event)">
+        <input type="text" class="input-box" id="msg-input" placeholder="Передати на частоті..." autocomplete="off" onkeypress="handleEnter(event)">
         <button class="send-btn" onclick="sendMessage()">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
         </button>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
+        tg.setHeaderColor('#0b1021'); // Колір шапки Telegram
+        tg.setBackgroundColor('#040710');
 
-        // 1. Найнадійніший спосіб: беремо ID прямо з посилання, яке згенерував бот
         const urlParams = new URLSearchParams(window.location.search);
         let myUserId = urlParams.get('user_id');
         let myFamilyId = urlParams.get('family_id');
 
-        // 2. Резервний варіант (якщо раптом параметрів немає)
         if (!myUserId) {
             const user = tg.initDataUnsafe?.user;
             myUserId = user ? String(user.id) : "0";
@@ -106,24 +173,20 @@
 
         async function initChat() {
             try {
-                // Використовуємо myUserId, який ми 100% отримали з URL
                 const res = await fetch(`/api/chat/init?user_id=${myUserId}`);
                 const data = await res.json();
                 if (data.error) {
-                    familyNameEl.innerText = "Помилка доступу";
+                    familyNameEl.innerText = "Доступ заборонено";
                     onlineCountEl.innerText = data.error;
                     return;
                 }
                 
-                // Якщо сервер підтвердив family_id, оновлюємо його
-                if (data.family_id) {
-                    myFamilyId = data.family_id;
-                }
+                if (data.family_id) myFamilyId = data.family_id;
                 
                 familyNameEl.innerText = data.family_name;
                 
-                syncChat(); // Перше завантаження
-                setInterval(syncChat, 2000); // Оновлення кожні 2 секунди
+                syncChat();
+                setInterval(syncChat, 2000); 
             } catch (err) { console.error(err); }
         }
 
@@ -133,10 +196,8 @@
                 const res = await fetch(`/api/chat/sync?family_id=${myFamilyId}&user_id=${myUserId}`);
                 const data = await res.json();
                 
-                // 1. Оновлення списку учасників
                 updateMembers(data.members);
 
-                // 2. Оновлення повідомлень
                 if (data.messages && data.messages.length !== lastMessageCount) {
                     renderMessages(data.messages);
                     lastMessageCount = data.messages.length;
@@ -155,11 +216,11 @@
                 const div = document.createElement('div');
                 div.className = `member-item ${m.is_online ? '' : 'offline'}`;
                 const icon = m.role === 'captain' ? '👑' : '👨‍🚀';
-                div.innerHTML = `<span class="online-dot"></span> ${icon} ${m.username}`;
+                div.innerHTML = `<span class="online-dot"></span> ${icon} &nbsp;${m.username}`;
                 membersListEl.appendChild(div);
             });
             
-            onlineCountEl.innerText = `${onlineCount} онлайн`;
+            onlineCountEl.innerText = `${onlineCount} в мережі`;
         }
 
         function renderMessages(messages) {
@@ -171,15 +232,17 @@
                 const isMine = String(m.user_id) === myUserId;
                 div.className = `message ${isMine ? 'msg-self' : 'msg-other'}`;
                 
+                // Перетворюємо переноси рядків (\n) на <br>, щоб вони красиво відображались
+                const textWithBreaks = m.text.replace(/\n/g, '<br>');
+                
                 div.innerHTML = `
                     <div class="message-author">${m.username}</div>
-                    ${m.text}
+                    ${textWithBreaks}
                     <span class="message-time">${m.time}</span>
                 `;
                 chatBox.appendChild(div);
             });
 
-            // Скролимо вниз тільки якщо ми були внизу (щоб не заважати читати історію)
             if (isScrolledToBottom || lastMessageCount === 0) {
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
@@ -189,12 +252,11 @@
             const text = inputEl.value.trim();
             if (!text || !myFamilyId) return;
 
-            inputEl.value = ''; // Одразу чистимо поле
+            inputEl.value = ''; 
             
-            // Локально малюємо для швидкості (оптимістичний UI)
             const div = document.createElement('div');
             div.className = 'message msg-self';
-            div.innerHTML = `${text}<span class="message-time">...</span>`;
+            div.innerHTML = `${text.replace(/\n/g, '<br>')}<span class="message-time">...</span>`;
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
             tg.HapticFeedback.impactOccurred('light');
@@ -208,12 +270,24 @@
                         username: myUsername, text: text
                     })
                 });
-                syncChat(); // Оновлюємо після відправки
+                syncChat(); 
             } catch (err) { console.error("Помилка відправки", err); }
         }
 
         function handleEnter(e) { if (e.key === 'Enter') sendMessage(); }
-        function toggleMembers() { membersListEl.style.display = membersListEl.style.display === 'block' ? 'none' : 'block'; }
+        
+        function toggleMembers() { 
+            membersListEl.style.display = membersListEl.style.display === 'block' ? 'none' : 'block'; 
+            if(membersListEl.style.display === 'block') { tg.HapticFeedback.selectionChanged(); }
+        }
+
+        // Ховати список учасників при кліку поза ним
+        document.addEventListener('click', function(event) {
+            const isClickInside = membersListEl.contains(event.target) || event.target.closest('.header-icon');
+            if (!isClickInside && membersListEl.style.display === 'block') {
+                membersListEl.style.display = 'none';
+            }
+        });
 
         initChat();
     </script>
