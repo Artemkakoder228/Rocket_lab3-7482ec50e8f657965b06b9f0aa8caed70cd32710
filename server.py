@@ -5,6 +5,7 @@ import datetime
 import random
 import os
 import requests
+import math
 from config import BOT_TOKEN
 
 # Вказуємо, що статичні файли (html, css, js) лежать прямо тут ('.')
@@ -475,14 +476,12 @@ def get_raid_targets():
         my_stats = db.get_ship_total_stats(family_id)
         my_power = sum(my_stats.values())
         
-        # ЛОГІКА СЕКТОРІВ (Інстансів):
-        # Ділимо всіх гравців на планеті на групи по 10 за їхнім ID
-        with db.connection:
-            # Отримуємо ВСІХ на цій планеті
-            db.cursor.execute("SELECT id, name, balance FROM families WHERE current_planet = %s ORDER BY id", (my_planet,))
-            all_on_planet = db.cursor.fetchall()
+        # === ДОДАНО db.lock ТУТ ===
+        with db.lock:
+            with db.connection:
+                db.cursor.execute("SELECT id, name, balance FROM families WHERE current_planet = %s ORDER BY id", (my_planet,))
+                all_on_planet = db.cursor.fetchall()
         
-        # Знаходимо індекс нашої сім'ї та визначаємо межі "сектору" (групи по 10)
         my_index = next((i for i, f in enumerate(all_on_planet) if f[0] == family_id), 0)
         sector_start = (my_index // 10) * 10
         sector_families = all_on_planet[sector_start : sector_start + 10]
@@ -490,21 +489,17 @@ def get_raid_targets():
         targets = []
         for f in sector_families:
             t_id = f[0]
-            if t_id == family_id: continue # Не показуємо самих себе як ціль
+            if t_id == family_id: continue 
             
             t_stats = db.get_ship_total_stats(t_id)
             t_power = sum(t_stats.values())
             
-            # Отримуємо СПРАВЖНІЙ рівень шахти
             mine_lvl = db.get_family_mine_level(t_id)
             
-            # Фіксовані координати на карті 2000x2000
-            # Використовуємо ID цілі як зерно для рандому, щоб координати не змінювались
             seed_rng = random.Random(t_id)
             pos_x = seed_rng.randint(250, 1750)
             pos_y = seed_rng.randint(250, 1750)
 
-            # Шанс перемоги
             if my_power == 0 and t_power == 0: win_chance = 50
             else:
                 chance = (my_power / (my_power + t_power + 1)) * 100
@@ -516,7 +511,7 @@ def get_raid_targets():
                 'power': t_power,
                 'mine_level': mine_lvl,
                 'win_chance': win_chance,
-                'raid_time': seed_rng.randint(5, 12), # Фіксований час рейду для цієї бази
+                'raid_time': seed_rng.randint(5, 12), 
                 'loot_coins': int(f[2] * 0.1),
                 'x': pos_x,
                 'y': pos_y
@@ -531,13 +526,14 @@ def get_raid_targets():
         print("RAID GET ERROR:", e)
         return jsonify({'error': 'Server error'}), 500
 
+
 @app.route('/api/raid/attack', methods=['POST'])
 def attack_target():
     data = request.json
     attacker_id = data.get('family_id')
     user_id = data.get('user_id')
     target_id = data.get('target_id')
-    raid_time = data.get('raid_time', 5) # Отримуємо час рейду
+    raid_time = data.get('raid_time', 5) 
     
     try:
         my_stats = db.get_ship_total_stats(attacker_id)
@@ -548,10 +544,12 @@ def attack_target():
         my_roll = my_power * random.uniform(0.8, 1.2)
         target_roll = target_power * random.uniform(0.8, 1.2)
         
-        with db.connection:
-            db.cursor.execute("SELECT balance, name FROM families WHERE id = %s", (target_id,))
-            target_data = db.cursor.fetchone()
-            target_balance, target_name = target_data[0], target_data[1]
+        # === ДОДАНО db.lock ТУТ ===
+        with db.lock:
+            with db.connection:
+                db.cursor.execute("SELECT balance, name FROM families WHERE id = %s", (target_id,))
+                target_data = db.cursor.fetchone()
+                target_balance, target_name = target_data[0], target_data[1]
             
         loot = 0
         win = False
@@ -560,16 +558,17 @@ def attack_target():
             win = True
             loot = int(target_balance * random.uniform(0.1, 0.15)) 
             
-            with db.connection:
-                db.cursor.execute("UPDATE families SET balance = balance - %s WHERE id = %s", (loot, target_id))
-                shield_time = datetime.datetime.now() + datetime.timedelta(hours=4)
-                db.cursor.execute("UPDATE families SET shield_until = %s WHERE id = %s", (shield_time, target_id))
-                db.cursor.execute("UPDATE families SET balance = balance + %s WHERE id = %s", (loot, attacker_id))
-                
-                # Кулдаун на наступну атаку дорівнює часу польоту туди і назад
-                cooldown_time = datetime.datetime.now() + datetime.timedelta(minutes=raid_time * 2)
-                db.cursor.execute("UPDATE families SET last_raid_time = %s WHERE id = %s", (cooldown_time, attacker_id))
-                db.connection.commit()
+            # === ДОДАНО db.lock ТУТ ===
+            with db.lock:
+                with db.connection:
+                    db.cursor.execute("UPDATE families SET balance = balance - %s WHERE id = %s", (loot, target_id))
+                    shield_time = datetime.datetime.now() + datetime.timedelta(hours=4)
+                    db.cursor.execute("UPDATE families SET shield_until = %s WHERE id = %s", (shield_time, target_id))
+                    db.cursor.execute("UPDATE families SET balance = balance + %s WHERE id = %s", (loot, attacker_id))
+                    
+                    cooldown_time = datetime.datetime.now() + datetime.timedelta(minutes=raid_time * 2)
+                    db.cursor.execute("UPDATE families SET last_raid_time = %s WHERE id = %s", (cooldown_time, attacker_id))
+                    db.connection.commit()
                 
             msg = f"⚔️ <b>Успішний Рейд!</b>\nРейд тривав {raid_time} хв. Ви розгромили колонію <b>{target_name}</b> і викрали <b>{loot}</b> 🪙!"
         else:
@@ -583,7 +582,6 @@ def attack_target():
     except Exception as e:
         print("RAID ATTACK ERROR:", e)
         return jsonify({'error': 'Помилка бою'}), 500
-
 # --- АПІ ДЛЯ СІМЕЙНОГО ЧАТУ ---
 
 @app.route('/api/chat/init', methods=['GET'])

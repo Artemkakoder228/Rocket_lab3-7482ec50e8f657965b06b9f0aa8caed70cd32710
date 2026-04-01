@@ -179,8 +179,8 @@
 
         // --- ЛОГІКА КАМЕРИ (PAN & ZOOM) ---
         const MAP_SIZE = 2000;
-        let scale = window.innerWidth / 1000; // Початковий масштаб під екран
-        scale = Math.max(0.5, Math.min(scale, 1.2)); // Обмежуємо початковий зум
+        let scale = window.innerWidth / 1000;
+        scale = Math.max(0.5, Math.min(scale, 1.2));
         
         // Ставимо камеру по центру карти
         let panX = (window.innerWidth - MAP_SIZE * scale) / 2;
