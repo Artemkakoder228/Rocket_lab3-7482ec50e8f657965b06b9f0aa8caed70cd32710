@@ -94,6 +94,20 @@
         .target-modal::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #00f3ff, transparent); }
         
         .modal-header { font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 20px; text-align: center; }
+        
+        /* Стиль для іконки шахти в модальному вікні */
+        /* Стиль для іконки шахти в модальному вікні */
+        .modal-mine-icon {
+            width: 140px;          /* Збільшено ширину */
+            height: 140px;         /* Збільшено висоту */
+            display: block; 
+            margin: 0 auto 20px;   /* Відступ знизу */
+            border: 2px solid rgba(0, 243, 255, 0.4); /* Трохи товща рамка */
+            border-radius: 16px;   /* Більше заокруглення */
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2); /* Більше світіння */
+            object-fit: cover;
+        }
+
         .stat-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 15px; background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;}
         .stat-row span { color: #8ba4b8; }
         .stat-row strong { color: #00f3ff; }
@@ -145,6 +159,8 @@
         <div class="target-modal" id="modal-content">
             <div class="modal-header" id="m-name">Колонія: Невідомо</div>
             
+            <img id="m-icon" src="" alt="Mine Icon" class="modal-mine-icon" style="display: none;">
+
             <div class="stat-row"><span>🏭 Рівень шахти:</span> <strong id="m-mine">1</strong></div>
             <div class="stat-row"><span>⚔️ Оборона:</span> <strong id="m-power">0</strong></div>
             <div class="stat-row"><span>⏱️ Час рейду:</span> <strong id="m-time">0 хв</strong></div>
@@ -176,6 +192,7 @@
         const overlay = document.getElementById('modal-overlay');
         const modalContent = document.getElementById('modal-content');
         let currentTarget = null;
+        let currentPlanetImg = ""; // Змінна для зберігання назви планети
 
         // --- ЛОГІКА КАМЕРИ (PAN & ZOOM) ---
         const MAP_SIZE = 2000;
@@ -264,11 +281,6 @@
         }
         // --- КІНЕЦЬ ЛОГІКИ КАМЕРИ ---
 
-
-        // --- АЛГОРИТМ РОЗМІЩЕННЯ БАЗ ---
-        const placedColonies = [];
-        const MIN_DISTANCE = 300; // Мінімальна відстань між базами (в пікселях віртуальної карти)
-
         async function fetchTargets() {
             try {
                 const response = await fetch(`/api/raid/targets?family_id=${familyId}`);
@@ -281,6 +293,7 @@
                 document.getElementById('hud-power').innerText = `Рівень флоту: ${data.my_power}`;
                 
                 const p = data.planet.toLowerCase();
+                currentPlanetImg = p; // Зберігаємо назву планети для іконки
                 
                 // Встановлюємо фон, що повторюється, на обидва шари
                 const bgUrl = `url('images/raid_bg_${p}.png')`;
@@ -329,6 +342,14 @@
             tg.HapticFeedback.selectionChanged();
             
             document.getElementById('m-name').innerText = `${target.name}`;
+            
+            // ВСТАНОВЛЮЄМО ФОТО ШАХТИ
+            const imgEl = document.getElementById('m-icon');
+            if (currentPlanetImg) {
+                imgEl.src = `images/raid_mine_${currentPlanetImg}.png`;
+                imgEl.style.display = 'block';
+            }
+
             document.getElementById('m-mine').innerText = `${target.mine_level} рівень`;
             document.getElementById('m-power').innerText = target.power;
             document.getElementById('m-time').innerText = `${target.raid_time} хв`;
