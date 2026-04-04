@@ -527,61 +527,107 @@ def get_raid_targets():
         return jsonify({'error': 'Server error'}), 500
 
 
-@app.route('/api/raid/attack', methods=['POST'])
-def attack_target():
-    data = request.json
-    attacker_id = data.get('family_id')
-    user_id = data.get('user_id')
-    target_id = data.get('target_id')
-    raid_time = data.get('raid_time', 5) 
-    
+import threading # Переконайтеся, що цей імпорт є зверху файлу
+
+# === ФУНКЦІЯ ДЛЯ ФОНОВОГО ПРОРАХУНКУ БОЮ ===
+# Вона спрацює автоматично, коли таймер польоту добіжить до кінця
+def process_raid_battle(attacker_id, target_id, raid_time):
     try:
         my_stats = db.get_ship_total_stats(attacker_id)
         target_stats = db.get_ship_total_stats(target_id)
         my_power = sum(my_stats.values())
         target_power = sum(target_stats.values())
-        
+
         my_roll = my_power * random.uniform(0.8, 1.2)
         target_roll = target_power * random.uniform(0.8, 1.2)
-        
-        # === ДОДАНО db.lock ТУТ ===
+
         with db.lock:
             with db.connection:
+                # Отримуємо назви сімей для красивих повідомлень
+                db.cursor.execute("SELECT name FROM families WHERE id = %s", (attacker_id,))
+                att_res = db.cursor.fetchone()
+                attacker_name = att_res[0] if att_res else "Невідомі"
+
                 db.cursor.execute("SELECT balance, name FROM families WHERE id = %s", (target_id,))
-                target_data = db.cursor.fetchone()
-                target_balance, target_name = target_data[0], target_data[1]
-            
+                tgt_res = db.cursor.fetchone()
+                target_balance = tgt_res[0] if tgt_res else 0
+                target_name = tgt_res[1] if tgt_res else "Невідомі"
+
         loot = 0
-        win = False
         
+        # Прорахунок результату
         if my_roll >= target_roll:
-            win = True
-            loot = int(target_balance * random.uniform(0.1, 0.15)) 
-            
-            # === ДОДАНО db.lock ТУТ ===
+            loot = int(target_balance * random.uniform(0.1, 0.15))
             with db.lock:
                 with db.connection:
                     db.cursor.execute("UPDATE families SET balance = balance - %s WHERE id = %s", (loot, target_id))
                     shield_time = datetime.datetime.now() + datetime.timedelta(hours=4)
                     db.cursor.execute("UPDATE families SET shield_until = %s WHERE id = %s", (shield_time, target_id))
                     db.cursor.execute("UPDATE families SET balance = balance + %s WHERE id = %s", (loot, attacker_id))
-                    
-                    cooldown_time = datetime.datetime.now() + datetime.timedelta(minutes=raid_time * 2)
-                    db.cursor.execute("UPDATE families SET last_raid_time = %s WHERE id = %s", (cooldown_time, attacker_id))
                     db.connection.commit()
-                
-            msg = f"⚔️ <b>Успішний Рейд!</b>\nРейд тривав {raid_time} хв. Ви розгромили колонію <b>{target_name}</b> і викрали <b>{loot}</b> 🪙!"
+
+            atk_msg = f"⚔️ <b>ЗВІТ ПРО РЕЙД</b>\nВаш флот повернувся з колонії <b>{target_name}</b>.\n✅ <b>Бій виграно!</b>\n💰 Викрадено: <b>{loot}</b> 🪙!"
+            def_msg = f"⚠️ <b>УВАГА! НА ВАС НАПАЛИ!</b>\nСім'я <b>{attacker_name}</b> здійснила успішний напад на вашу базу!\n💔 Втрачено: <b>{loot}</b> 🪙.\n🛡 Ваша колонія отримала енергетичний щит на 4 години."
         else:
-            msg = f"💥 <b>Поразка...</b>\nОборона колонії <b>{target_name}</b> виявилась сильнішою. Ваш флот відступив з ганьбою."
+            atk_msg = f"⚔️ <b>ЗВІТ ПРО РЕЙД</b>\nВаш флот повернувся з колонії <b>{target_name}</b>.\n💥 <b>Поразка...</b> Оборона ворога виявилась занадто міцною."
+            def_msg = f"🛡 <b>УСПІШНА ОБОРОНА!</b>\nСім'я <b>{attacker_name}</b> намагалася вас пограбувати, але ваші захисні системи відбили напад!\n✅ Всі ресурси в безпеці."
+
+        # Відправляємо результати ВСІМ учасникам обох сімей
+        with db.lock:
+            with db.connection:
+                db.cursor.execute("SELECT user_id FROM users WHERE family_id = %s", (attacker_id,))
+                attackers = [row[0] for row in db.cursor.fetchall()]
+                db.cursor.execute("SELECT user_id FROM users WHERE family_id = %s", (target_id,))
+                defenders = [row[0] for row in db.cursor.fetchall()]
+
+        for a in attackers:
+            try: requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": str(a), "text": atk_msg, "parse_mode": "HTML"})
+            except: pass
+
+        for d in defenders:
+            try: requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": str(d), "text": def_msg, "parse_mode": "HTML"})
+            except: pass
+
+    except Exception as e:
+        print("BACKGROUND BATTLE ERROR:", e)
+
+
+# === API ЗАПУСКУ АТАКИ З САЙТУ ===
+@app.route('/api/raid/attack', methods=['POST'])
+def attack_target():
+    data = request.json
+    attacker_id = data.get('family_id')
+    user_id = data.get('user_id')
+    target_id = data.get('target_id')
+    raid_time = data.get('raid_time', 5) # Час польоту в хвилинах
+    
+    try:
+        with db.lock:
+            with db.connection:
+                # Перевірка: чи не летить вже інший флот нашої сім'ї?
+                db.cursor.execute("SELECT last_raid_time FROM families WHERE id = %s", (attacker_id,))
+                res = db.cursor.fetchone()
+                if res and res[0] and res[0] > datetime.datetime.now():
+                    return jsonify({'error': 'Ваш флот вже у польоті! Дочекайтеся його повернення або завершення перезарядки.'}), 403
+                
+                # Відразу вішаємо кулдаун (наприклад, політ туди і назад)
+                cooldown_time = datetime.datetime.now() + datetime.timedelta(minutes=raid_time * 2)
+                db.cursor.execute("UPDATE families SET last_raid_time = %s WHERE id = %s", (cooldown_time, attacker_id))
+                db.connection.commit()
+                
+        # Запускаємо таймер у фоні (множимо хвилини на 60, щоб отримати секунди)
+        # УВАГА: Якщо хочете швидко протестувати, змініть `raid_time * 60` на `10` (тоді бій триватиме 10 секунд)
+        flight_seconds = raid_time * 60
+        timer = threading.Timer(flight_seconds, process_raid_battle, args=(attacker_id, target_id, raid_time))
+        timer.start()
         
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        requests.post(url, json={"chat_id": user_id, "text": msg, "parse_mode": "HTML"})
-        
-        return jsonify({'success': True, 'win': win, 'loot': loot, 'message': msg})
+        # Відповідаємо веб-сайту моментально, що флот успішно стартував
+        return jsonify({'success': True, 'win': True})
         
     except Exception as e:
         print("RAID ATTACK ERROR:", e)
-        return jsonify({'error': 'Помилка бою'}), 500
+        return jsonify({'error': 'Помилка запуску флоту'}), 500
+    
 # --- АПІ ДЛЯ СІМЕЙНОГО ЧАТУ ---
 
 @app.route('/api/chat/init', methods=['GET'])
@@ -637,24 +683,42 @@ def chat_send():
     
     if not text.strip(): return jsonify({'error': 'Empty message'}), 400
     
+    # 1. Зберігаємо повідомлення в базу та оновлюємо активність відправника
     db.ping_user_activity(int(user_id))
     db.add_chat_message(family_id, user_id, username, text)
     
-    # Відправка сповіщень офлайн користувачам
+    # 2. Отримуємо статуси всіх учасників (хто онлайн, а хто ні)
     statuses = db.get_family_members_status(family_id)
+            
+    # 3. Розсилаємо сповіщення ТІЛЬКИ ОФЛАЙН гравцям
     for s in statuses:
         mem_id = str(s[0])
-        is_online = s[3]
+        is_online = s[3] # Це значення True, якщо гравець був активний останні 2 хвилини
+        
+        # Відправляємо сповіщення всім, ОКРІМ самого відправника І ТІЛЬКИ ЯКЩО ВОНИ ОФЛАЙН
         if mem_id != str(user_id) and not is_online:
             try:
                 url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-                msg_text = f"💬 <b>[{username}] у чаті:</b>\n{text}"
-                requests.post(url, json={"chat_id": mem_id, "text": msg_text, "parse_mode": "HTML", "reply_markup": {"inline_keyboard": [[{"text": "Відкрити Чат", "web_app": {"url": f"{request.host_url}chat.html"}}]]}})
-            except Exception:
-                pass
+                msg_text = f"💬 <b>Нове повідомлення в чаті сім'ї!</b>\nВід: <b>{username}</b>\n\n<i>«{text}»</i>"
+                
+                # Формуємо безпечне посилання для кнопки
+                base_url = request.host_url.replace("http://", "https://")
+                chat_url = f"{base_url}chat.html?user_id={mem_id}&family_id={family_id}"
+                
+                keyboard = {
+                    "inline_keyboard": [[{"text": "📱 Відкрити Чат", "web_app": {"url": chat_url}}]]
+                }
+                
+                requests.post(url, json={
+                    "chat_id": mem_id, 
+                    "text": msg_text, 
+                    "parse_mode": "HTML", 
+                    "reply_markup": keyboard
+                })
+            except Exception as e:
+                print(f"Chat Notification Error: {e}")
 
     return jsonify({'success': True})
-
 def run_flask():
     # Port 5000 стандартний, Render сам його прокине
     app.run(host='0.0.0.0', port=8000, debug=False, use_reloader=False)
