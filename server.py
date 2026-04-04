@@ -463,68 +463,32 @@ import math # Переконайтеся, що на початку файлу є
 
 @app.route('/api/raid/targets', methods=['GET'])
 def get_raid_targets():
-    family_id_raw = request.args.get('family_id')
-    if not family_id_raw: return jsonify({'error': 'No family_id'})
-    
-    family_id = int(family_id_raw)
-    
+    family_id = int(request.args.get('family_id'))
     try:
-        my_info = db.get_family_resources(family_id)
-        if not my_info: return jsonify({'error': 'Family not found'})
-        my_planet = my_info[11] 
-        
-        my_stats = db.get_ship_total_stats(family_id)
-        my_power = sum(my_stats.values())
-        
-        # === ДОДАНО db.lock ТУТ ===
+        my_planet = db.get_family_resources(family_id)[11]
         with db.lock:
             with db.connection:
-                db.cursor.execute("SELECT id, name, balance FROM families WHERE current_planet = %s ORDER BY id", (my_planet,))
-                all_on_planet = db.cursor.fetchall()
+                db.cursor.execute("SELECT id, name, balance, under_attack_until FROM families WHERE current_planet = %s ORDER BY id", (my_planet,))
+                rows = db.cursor.fetchall()
         
-        my_index = next((i for i, f in enumerate(all_on_planet) if f[0] == family_id), 0)
-        sector_start = (my_index // 10) * 10
-        sector_families = all_on_planet[sector_start : sector_start + 10]
-
         targets = []
-        for f in sector_families:
-            t_id = f[0]
-            if t_id == family_id: continue 
-            
-            t_stats = db.get_ship_total_stats(t_id)
-            t_power = sum(t_stats.values())
-            
-            mine_lvl = db.get_family_mine_level(t_id, my_planet)
+        for r in rows:
+            if r[0] == family_id: continue
+            t_id = r[0]
+            # Вираховуємо чи під облогою зараз
+            is_attacked = r[3] > datetime.datetime.now() if r[3] else False
+            end_ts = int(r[3].timestamp() * 1000) if r[3] else 0
             
             seed_rng = random.Random(t_id)
-            pos_x = seed_rng.randint(250, 1750)
-            pos_y = seed_rng.randint(250, 1750)
-
-            if my_power == 0 and t_power == 0: win_chance = 50
-            else:
-                chance = (my_power / (my_power + t_power + 1)) * 100
-                win_chance = min(95, max(5, int(chance)))
-
             targets.append({
-                'id': t_id,
-                'name': f[1],
-                'power': t_power,
-                'mine_level': mine_lvl,
-                'win_chance': win_chance,
-                'raid_time': seed_rng.randint(5, 12), 
-                'loot_coins': int(f[2] * 0.1),
-                'x': pos_x,
-                'y': pos_y
+                'id': t_id, 'name': r[1], 'mine_level': db.get_family_mine_level(t_id, my_planet),
+                'power': sum(db.get_ship_total_stats(t_id).values()),
+                'under_attack': is_attacked, 'attack_end_ms': end_ts,
+                'raid_time': seed_rng.randint(5, 12), 'loot_coins': int(r[2] * 0.1),
+                'x': seed_rng.randint(250, 1750), 'y': seed_rng.randint(250, 1750)
             })
-                
-        return jsonify({
-            'planet': my_planet, 
-            'my_power': my_power, 
-            'targets': targets
-        })
-    except Exception as e:
-        print("RAID GET ERROR:", e)
-        return jsonify({'error': 'Server error'}), 500
+        return jsonify({'targets': targets, 'server_time': int(datetime.datetime.now().timestamp() * 1000)})
+    except Exception as e: return jsonify({'error': str(e)}), 500
 
 
 import threading # Переконайтеся, що цей імпорт є зверху файлу
@@ -537,96 +501,81 @@ def process_raid_battle(attacker_id, target_id, raid_time):
         target_stats = db.get_ship_total_stats(target_id)
         my_power = sum(my_stats.values())
         target_power = sum(target_stats.values())
+        
+        with db.lock:
+            with db.connection:
+                # Отримуємо дані для звітів
+                db.cursor.execute("SELECT name FROM families WHERE id = %s", (attacker_id,))
+                attacker_name = db.cursor.fetchone()[0]
+                db.cursor.execute("SELECT balance, name FROM families WHERE id = %s", (target_id,))
+                t_data = db.cursor.fetchone()
+                target_balance, target_name = t_data[0], t_data[1]
 
         my_roll = my_power * random.uniform(0.8, 1.2)
         target_roll = target_power * random.uniform(0.8, 1.2)
-
-        with db.lock:
-            with db.connection:
-                # Отримуємо назви сімей для красивих повідомлень
-                db.cursor.execute("SELECT name FROM families WHERE id = %s", (attacker_id,))
-                att_res = db.cursor.fetchone()
-                attacker_name = att_res[0] if att_res else "Невідомі"
-
-                db.cursor.execute("SELECT balance, name FROM families WHERE id = %s", (target_id,))
-                tgt_res = db.cursor.fetchone()
-                target_balance = tgt_res[0] if tgt_res else 0
-                target_name = tgt_res[1] if tgt_res else "Невідомі"
-
-        loot = 0
         
-        # Прорахунок результату
+        loot = 0
         if my_roll >= target_roll:
             loot = int(target_balance * random.uniform(0.1, 0.15))
             with db.lock:
                 with db.connection:
-                    db.cursor.execute("UPDATE families SET balance = balance - %s WHERE id = %s", (loot, target_id))
-                    shield_time = datetime.datetime.now() + datetime.timedelta(hours=4)
-                    db.cursor.execute("UPDATE families SET shield_until = %s WHERE id = %s", (shield_time, target_id))
+                    db.cursor.execute("UPDATE families SET balance = balance - %s, shield_until = CURRENT_TIMESTAMP + INTERVAL '4 hours', under_attack_until = NULL WHERE id = %s", (loot, target_id))
                     db.cursor.execute("UPDATE families SET balance = balance + %s WHERE id = %s", (loot, attacker_id))
-                    db.connection.commit()
-
-            atk_msg = f"⚔️ <b>ЗВІТ ПРО РЕЙД</b>\nВаш флот повернувся з колонії <b>{target_name}</b>.\n✅ <b>Бій виграно!</b>\n💰 Викрадено: <b>{loot}</b> 🪙!"
-            def_msg = f"⚠️ <b>УВАГА! НА ВАС НАПАЛИ!</b>\nСім'я <b>{attacker_name}</b> здійснила успішний напад на вашу базу!\n💔 Втрачено: <b>{loot}</b> 🪙.\n🛡 Ваша колонія отримала енергетичний щит на 4 години."
+            atk_msg = f"✅ <b>Рейд завершено!</b>\nМи розгромили <b>{target_name}</b> та викрали <b>{loot}</b> 🪙"
+            def_msg = f"💔 <b>Нас пограбували!</b>\nСім'я <b>{attacker_name}</b> викрала <b>{loot}</b> 🪙. Увімкнено щит на 4г."
         else:
-            atk_msg = f"⚔️ <b>ЗВІТ ПРО РЕЙД</b>\nВаш флот повернувся з колонії <b>{target_name}</b>.\n💥 <b>Поразка...</b> Оборона ворога виявилась занадто міцною."
-            def_msg = f"🛡 <b>УСПІШНА ОБОРОНА!</b>\nСім'я <b>{attacker_name}</b> намагалася вас пограбувати, але ваші захисні системи відбили напад!\n✅ Всі ресурси в безпеці."
+            with db.lock:
+                with db.connection:
+                    db.cursor.execute("UPDATE families SET under_attack_until = NULL WHERE id = %s", (target_id))
+            atk_msg = f"💥 <b>Поразка в рейді!</b>\nЗахист <b>{target_name}</b> виявився сильнішим. Флот повернувся ні з чим."
+            def_msg = f"🛡 <b>Напад відбито!</b>\nСім'я <b>{attacker_name}</b> намагалася нас атакувати, але наші системи захисту впорались!"
 
-        # Відправляємо результати ВСІМ учасникам обох сімей
-        with db.lock:
-            with db.connection:
-                db.cursor.execute("SELECT user_id FROM users WHERE family_id = %s", (attacker_id,))
-                attackers = [row[0] for row in db.cursor.fetchall()]
-                db.cursor.execute("SELECT user_id FROM users WHERE family_id = %s", (target_id,))
-                defenders = [row[0] for row in db.cursor.fetchall()]
-
-        for a in attackers:
-            try: requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": str(a), "text": atk_msg, "parse_mode": "HTML"})
-            except: pass
-
-        for d in defenders:
-            try: requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": str(d), "text": def_msg, "parse_mode": "HTML"})
-            except: pass
-
+        # Розсилка фінальних звітів
+        for fid, msg in [(attacker_id, atk_msg), (target_id, def_msg)]:
+            with db.lock:
+                with db.connection:
+                    db.cursor.execute("SELECT user_id FROM users WHERE family_id = %s", (fid,))
+                    users = [r[0] for r in db.cursor.fetchall()]
+            for uid in users:
+                requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": str(uid), "text": msg, "parse_mode": "HTML"})
     except Exception as e:
-        print("BACKGROUND BATTLE ERROR:", e)
+        print("BATTLE ERROR:", e)
 
 
 # === API ЗАПУСКУ АТАКИ З САЙТУ ===
 @app.route('/api/raid/attack', methods=['POST'])
 def attack_target():
     data = request.json
-    attacker_id = data.get('family_id')
-    user_id = data.get('user_id')
-    target_id = data.get('target_id')
-    raid_time = data.get('raid_time', 5) # Час польоту в хвилинах
-    
+    attacker_id, target_id, r_time = data['family_id'], data['target_id'], data['raid_time']
     try:
         with db.lock:
             with db.connection:
-                # Перевірка: чи не летить вже інший флот нашої сім'ї?
-                db.cursor.execute("SELECT last_raid_time FROM families WHERE id = %s", (attacker_id,))
-                res = db.cursor.fetchone()
-                if res and res[0] and res[0] > datetime.datetime.now():
-                    return jsonify({'error': 'Ваш флот вже у польоті! Дочекайтеся його повернення або завершення перезарядки.'}), 403
+                # Встановлюємо статус облоги
+                end_attack = datetime.datetime.now() + datetime.timedelta(minutes=r_time)
+                db.cursor.execute("UPDATE families SET under_attack_until = %s WHERE id = %s", (end_attack, target_id))
+                db.cursor.execute("UPDATE families SET last_raid_time = %s WHERE id = %s", (datetime.datetime.now() + datetime.timedelta(minutes=r_time*2), attacker_id))
                 
-                # Відразу вішаємо кулдаун (наприклад, політ туди і назад)
-                cooldown_time = datetime.datetime.now() + datetime.timedelta(minutes=raid_time * 2)
-                db.cursor.execute("UPDATE families SET last_raid_time = %s WHERE id = %s", (cooldown_time, attacker_id))
-                db.connection.commit()
-                
-        # Запускаємо таймер у фоні (множимо хвилини на 60, щоб отримати секунди)
-        # УВАГА: Якщо хочете швидко протестувати, змініть `raid_time * 60` на `10` (тоді бій триватиме 10 секунд)
-        flight_seconds = raid_time * 60
-        timer = threading.Timer(flight_seconds, process_raid_battle, args=(attacker_id, target_id, raid_time))
-        timer.start()
-        
-        # Відповідаємо веб-сайту моментально, що флот успішно стартував
-        return jsonify({'success': True, 'win': True})
-        
-    except Exception as e:
-        print("RAID ATTACK ERROR:", e)
-        return jsonify({'error': 'Помилка запуску флоту'}), 500
+                # Отримуємо імена
+                db.cursor.execute("SELECT name FROM families WHERE id IN (%s, %s)", (attacker_id, target_id))
+                names = {row[0] for row in db.cursor.fetchall()}
+                attacker_name = db.get_family(attacker_id)[1]
+                target_name = db.get_family(target_id)[1]
+
+        # МИТТЄВІ СПОВІЩЕННЯ
+        def notify(fid, text):
+            with db.lock:
+                with db.connection:
+                    db.cursor.execute("SELECT user_id FROM users WHERE family_id = %s", (fid,))
+                    uids = [r[0] for r in db.cursor.fetchall()]
+            for uid in uids:
+                requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": str(uid), "text": text, "parse_mode": "HTML"})
+
+        notify(attacker_id, f"🚀 <b>Рейд почався!</b>\nНаш флот атакує <b>{target_name}</b>. Повернення через {r_time} хв.")
+        notify(target_id, f"⚠️ <b>ТРИВОГА! НА НАС НАПАЛИ!</b>\nСім'я <b>{attacker_name}</b> почала штурм нашої колонії! Бій відбудеться через {r_time} хв.")
+
+        threading.Timer(r_time * 60, process_raid_battle, args=(attacker_id, target_id, r_time)).start()
+        return jsonify({'success': True})
+    except Exception as e: return jsonify({'error': str(e)}), 500
     
 # --- АПІ ДЛЯ СІМЕЙНОГО ЧАТУ ---
 

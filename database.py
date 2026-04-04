@@ -150,6 +150,7 @@ class Database:
             """)
         try:
                 self.cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+                self.cursor.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS under_attack_until TIMESTAMP")
                 self.connection.commit()
         except Exception:
                 self.connection.rollback()
