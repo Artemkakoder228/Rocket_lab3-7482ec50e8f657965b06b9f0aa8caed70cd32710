@@ -42,8 +42,8 @@
         .nav-btn-anim {
             display: block; width: 80%; padding: 15px; margin: 30px auto;
             background: rgba(0, 243, 255, 0.05);
-            border: 2px solid var(--accent-cyan);
-            color: var(--accent-cyan);
+            border: 2px solid var(--accent-cyan, #00f3ff);
+            color: var(--accent-cyan, #00f3ff);
             border-radius: 30px;
             font-size: 16px; font-weight: bold;
             cursor: pointer; text-transform: uppercase;
@@ -52,8 +52,8 @@
             box-shadow: 0 0 10px rgba(0, 243, 255, 0.1);
         }
         .nav-btn-anim:hover {
-            background: var(--accent-cyan); color: #000;
-            box-shadow: 0 0 25px var(--accent-cyan); transform: scale(1.03);
+            background: var(--accent-cyan, #00f3ff); color: #000;
+            box-shadow: 0 0 25px var(--accent-cyan, #00f3ff); transform: scale(1.03);
         }
         /* Ефект бліку (переливання) */
         .nav-btn-anim::before {
@@ -89,7 +89,11 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const familyId = urlParams.get('family_id');
-        const userId = tg.initDataUnsafe?.user?.id || urlParams.get('user_id');
+        
+        // Отримуємо userID. Пріоритет - initDataUnsafe, якщо ні (в браузері), беремо з URL
+        const user = tg.initDataUnsafe?.user;
+        const userId = user ? String(user.id) : urlParams.get('user_id');
+        const myUsername = user ? (user.username || user.first_name) : "Гравець";
 
         // === ЩОДЕННА ЗМІНА АСОРТИМЕНТУ ===
         const prizeSets = [
@@ -134,7 +138,7 @@
         currentPrizes.forEach((prize, index) => {
             const div = document.createElement('div');
             div.className = 'segment';
-            // ВИПРАВЛЕНА МАТЕМАТИКА: Віднімаємо 90 градусів, щоб текст збігався з фоном
+            // Віднімаємо 90 градусів, щоб текст збігався з фоном
             const rotation = (index * 45) + 22.5 - 90; 
             div.style.transform = `rotate(${rotation}deg)`;
             div.style.color = prize.color;
@@ -146,7 +150,8 @@
 
         async function checkStatus() {
             try {
-                const res = await fetch(`/api/fortune/check?family_id=${familyId}`);
+                // Перевіряємо по USER_ID
+                const res = await fetch(`/api/fortune/check?user_id=${userId}`);
                 const data = await res.json();
                 const btn = document.getElementById('spinBtn');
                 
@@ -157,7 +162,10 @@
                     btn.innerText = `⏳ Очікування: ${data.time_left}`;
                     btn.disabled = true;
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error(e); 
+                document.getElementById('spinBtn').innerText = "Помилка зв'язку";
+            }
         }
 
         async function spinWheel() {
@@ -165,7 +173,6 @@
             btn.disabled = true;
             btn.innerText = "Обертання...";
 
-            // === ІДЕАЛЬНА МАТЕМАТИКА ОБЕРТАННЯ ===
             // 1. Спочатку обираємо виграшний сектор
             const winningIndex = Math.floor(Math.random() * 8);
             const wonPrize = currentPrizes[winningIndex];
@@ -188,17 +195,27 @@
                 document.getElementById('statusMsg').innerText = `✅ Ви виграли: ${wonPrize.label}`;
                 document.getElementById('statusMsg').style.display = 'block';
 
-                // Відправляємо дані на сервер
-                await fetch('/api/fortune/spin', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ family_id: familyId, user_id: userId, type: wonPrize.type, amount: wonPrize.amount })
-                });
-
-                checkStatus();
+                try {
+                    // Відправляємо дані на сервер
+                    await fetch('/api/fortune/spin', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            family_id: familyId, 
+                            user_id: userId, 
+                            username: myUsername,
+                            type: wonPrize.type, 
+                            amount: wonPrize.amount 
+                        })
+                    });
+                    checkStatus(); // Оновлюємо таймер після успішної прокрутки
+                } catch (e) {
+                    console.error("Spin request failed", e);
+                }
             }, 4000);
         }
 
+        // Запускаємо перевірку одразу при відкритті
         checkStatus();
     </script>
 </body>

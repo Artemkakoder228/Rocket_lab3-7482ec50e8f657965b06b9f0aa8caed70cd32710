@@ -387,42 +387,68 @@ def submit_feedback():
 
     return jsonify({'success': True})
 
+# --- АПІ ДЛЯ КОЛЕСА ФОРТУНИ ---
 @app.route('/api/fortune/check', methods=['GET'])
 def fortune_check():
-    family_id = request.args.get('family_id')
-    if not family_id: return jsonify({'error': 'Не вказано ID'}), 400
+    # Тепер беремо user_id замість family_id
+    user_id_raw = request.args.get('user_id')
+    if not user_id_raw or user_id_raw == 'null':
+        return jsonify({'error': 'No user_id'}), 400
+        
+    user_id = int(user_id_raw)
     
-    can_spin, time_left = db.check_fortune(family_id)
-    return jsonify({'can_spin': can_spin, 'time_left': time_left})
+    can_spin, time_left = db.check_fortune(user_id)
+    
+    if can_spin:
+        return jsonify({'can_spin': True})
+    else:
+        return jsonify({'can_spin': False, 'time_left': time_left})
 
 @app.route('/api/fortune/spin', methods=['POST'])
 def fortune_spin():
     data = request.json
-    family_id = data.get('family_id')
     user_id = data.get('user_id')
+    family_id = data.get('family_id')
+    username = data.get('username', 'Гравець')
     reward_type = data.get('type')
     amount = data.get('amount')
     
-    can_spin, time_left = db.check_fortune(family_id)
-    if not can_spin:
-        return jsonify({'success': False, 'error': f'Колесо перезаряджається. Залишилось: {time_left}'})
+    if not user_id or not family_id:
+        return jsonify({'error': 'Missing data'}), 400
         
-    db.claim_fortune(family_id, reward_type, amount)
-    
-    # Відправляємо повідомлення в Telegram
-    type_names = {
-        'coins': '🪙 Монет', 'iron': '🪨 Заліза', 'fuel': '⛽ Палива',
-        'silicon': '💠 Кремнію', 'oxide': '🔴 Оксиду', 
-        'regolith': '🌑 Реголіту', 'he3': '💨 Гелію-3'
-    }
-    
-    name = type_names.get(reward_type, 'Ресурсів')
-    msg = f"🎡 <b>КОЛЕСО ФОРТУНИ</b>\n━━━━━━━━━━━━━━━━━━━━━\nВи успішно крутнули колесо і виграли:\n🎁 <b>{amount} {name}</b>!"
-    
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    requests.post(url, json={"chat_id": user_id, "text": msg, "parse_mode": "HTML"})
-    
-    return jsonify({'success': True})
+    # Перевірка на бекенді для безпеки
+    can_spin, _ = db.check_fortune(user_id)
+    if not can_spin:
+        return jsonify({'error': 'Ви вже крутили колесо сьогодні!'}), 403
+        
+    try:
+        # Викликаємо нову функцію (передаємо і family_id і user_id)
+        db.claim_fortune(family_id, user_id, reward_type, amount)
+        
+        # Відправляємо сповіщення в бот
+        translations = {
+            'coins': 'Монет 🪙', 'iron': 'Заліза 🔩', 'fuel': 'Палива ⛽', 
+            'silicon': 'Кремнію 💾', 'oxide': 'Оксиду 🧪', 'regolith': 'Реголіту 🌑',
+            'he3': 'Гелію-3 ⚛️', 'hydrogen': 'Водню 🌫', 'helium': 'Гелію 🎈'
+        }
+        item_name = translations.get(reward_type, reward_type)
+        
+        msg = f"🎁 <b>Колесо Фортуни!</b>\nГравець <b>{username}</b> виграв для сім'ї <b>{amount} {item_name}</b>!"
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        
+        # Сповіщаємо всіх членів сім'ї (як ви хотіли раніше)
+        with db.lock:
+            with db.connection:
+                db.cursor.execute("SELECT user_id FROM users WHERE family_id = %s", (family_id,))
+                members = db.cursor.fetchall()
+        for m in members:
+            try: requests.post(url, json={"chat_id": str(m[0]), "text": msg, "parse_mode": "HTML"})
+            except: pass
+            
+        return jsonify({'success': True})
+    except Exception as e:
+        print("FORTUNE ERROR:", e)
+        return jsonify({'error': 'Помилка сервера'}), 500
     
 @app.route('/api/investigate', methods=['POST'])
 def investigate():

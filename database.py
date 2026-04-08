@@ -151,6 +151,7 @@ class Database:
         try:
                 self.cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
                 self.cursor.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS under_attack_until TIMESTAMP")
+                self.cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_fortune TIMESTAMP")
                 self.connection.commit()
         except Exception:
                 self.connection.rollback()
@@ -745,39 +746,42 @@ class Database:
             self.cursor.execute("UPDATE families SET quiz_attempts = quiz_attempts + 1, last_quiz_date = %s WHERE id = %s", (today, family_id))
 
     # --- КОЛЕСО ФОРТУНИ ---
-    def check_fortune(self, family_id):
-        from datetime import datetime, timedelta
-        self.cursor.execute("SELECT last_fortune FROM families WHERE id = %s", (family_id,))
-        res = self.cursor.fetchone()
-        if not res or not res[0]: 
-            return True, "0:00"
-            
-        last_time = res[0]
-        now = datetime.now()
-        diff = now - last_time
-        
-        if diff >= timedelta(days=1):
-            return True, "0:00"
-        else:
-            left = timedelta(days=1) - diff
-            hours, rem = divmod(left.seconds, 3600)
-            mins, _ = divmod(rem, 60)
-            return False, f"{hours}г {mins}хв"
+    def check_fortune(self, user_id):
+        """Перевіряє, чи може КОНКРЕТНИЙ ГРАВЕЦЬ крутити рулетку (раз на 24 години)"""
+        with self.lock:
+            with self.connection:
+                self.cursor.execute("SELECT last_fortune FROM users WHERE user_id = %s", (user_id,))
+                res = self.cursor.fetchone()
+                if not res or not res[0]:
+                    return True, None
+                
+                last_time = res[0]
+                now = datetime.datetime.now()
+                diff = now - last_time
+                if diff.total_seconds() >= 86400: # 86400 секунд = 24 години
+                    return True, None
+                
+                left = 86400 - diff.total_seconds()
+                hours = int(left // 3600)
+                minutes = int((left % 3600) // 60)
+                return False, f"{hours}г {minutes}хв"
 
-    def claim_fortune(self, family_id, reward_type, amount):
-        from datetime import datetime
-        col_map = {
-            'coins': 'balance', 'iron': 'res_iron', 'fuel': 'res_fuel',
-            'silicon': 'res_silicon', 'oxide': 'res_oxide', 
-            'regolith': 'res_regolith', 'he3': 'res_he3'
-        }
-        col = col_map.get(reward_type, 'balance')
-        now = datetime.now()
-        with self.connection:
-            self.cursor.execute(f"UPDATE families SET {col} = {col} + %s, last_fortune = %s WHERE id = %s", (amount, now, family_id))
-
-    # --- СІМЕЙНИЙ ВЕБ-ЧАТ ---
-    # --- СІМЕЙНИЙ ВЕБ-ЧАТ ---
+    def claim_fortune(self, family_id, user_id, reward_type, amount):
+        """Видає нагороду на баланс сім'ї, але таймер вішає на конкретного гравця"""
+        with self.lock:
+            with self.connection:
+                # 1. Оновлюємо таймер ГРАВЦЯ
+                now = datetime.datetime.now()
+                self.cursor.execute("UPDATE users SET last_fortune = %s WHERE user_id = %s", (now, user_id))
+                
+                # 2. Видаємо нагороду СІМ'Ї
+                if reward_type == 'coins':
+                    self.cursor.execute("UPDATE families SET balance = balance + %s WHERE id = %s", (amount, family_id))
+                else:
+                    column = f"res_{reward_type}"
+                    self.cursor.execute(f"UPDATE families SET {column} = {column} + %s WHERE id = %s", (amount, family_id))
+                
+                self.connection.commit()
     # --- СІМЕЙНИЙ ВЕБ-ЧАТ ---
     def get_family_members_status(self, family_id):
         with self.lock: # <- ДОДАНО
